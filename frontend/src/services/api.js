@@ -1,0 +1,66 @@
+/**
+ * API 客户端
+ */
+import axios from 'axios'
+
+const apiClient = axios.create({
+  baseURL: '/api/v1',
+  timeout: 90000,
+  headers: {
+    'Content-Type': 'application/json',
+  }
+})
+
+// 请求拦截器
+apiClient.interceptors.request.use(
+  config => {
+    console.log('API 请求:', config.method.toUpperCase(), config.url)
+    return config
+  },
+  error => {
+    console.error('请求错误:', error)
+    return Promise.reject(error)
+  }
+)
+
+// 响应拦截器
+apiClient.interceptors.response.use(
+  response => {
+    console.log('API 响应:', response.status, response.config.url)
+    return response
+  },
+  error => {
+    console.error('响应错误:', error.response?.status, error.message)
+    return Promise.reject(error)
+  }
+)
+
+/**
+ * 上传骨骼坐标
+ */
+export async function uploadLandmarks(landmarks, metrics, sessionId = null) {
+  const response = await apiClient.post('/screening/landmarks', {
+    landmarks,
+    metrics,
+    sessionId,
+  })
+  return response.data
+}
+
+/**
+ * 查询分析结果
+ */
+export async function getAnalysis(sessionId) {
+  const response = await apiClient.get(`/screening/analysis/${sessionId}`)
+  return response.data
+}
+
+/**
+ * 健康检查
+ */
+export async function healthCheck() {
+  const response = await apiClient.get('/health')
+  return response.data
+}
+
+export default apiClient
