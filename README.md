@@ -1,186 +1,180 @@
-# 脊卫童行 Python 版本
+# 脊卫童行
 
-## 项目简介
+儿童脊柱健康初筛系统，当前版本采用：
 
-这是一个基于 Python FastAPI + Vue 3 的儿童脊柱健康筛查系统，专为低内存服务器优化。
+- 后端：Python + FastAPI
+- 前端：Vue 3 + Vite
+- 姿态识别：浏览器端 TensorFlow.js MoveNet
+- AI 解读：后端调用大模型生成结构化分析
 
-**内存占用对比：**
-- Next.js 版本：1.5-2GB（开发模式）
-- Python 版本：400-700MB（开发模式）✅
+项目目标是让家长在手机或电脑上完成一轮背部照片初筛：上传或拍摄照片，识别关键点，计算基础指标，再生成 AI 报告。
 
-## 快速开始
+## 当前能力
 
-### 方式 1：一键启动（推荐）
+- 上传照片或用手机引导拍摄
+- 在浏览器中完成骨骼关键点识别
+- 计算肩高差、肩部倾角、骨盆倾角、脊柱曲线估计
+- 生成 AI 分析报告
+- 提供移动端优化界面，尽量把主操作和主结果留在当前视口
+
+## 目录结构
+
+```text
+Spinal-Python/
+├── backend/
+│   ├── src/
+│   │   ├── api/          # FastAPI 路由
+│   │   ├── database/     # 数据库连接
+│   │   ├── models/       # ORM 模型
+│   │   ├── schemas/      # Pydantic 数据结构
+│   │   ├── services/     # AI / 测量等业务逻辑
+│   │   └── utils/        # 日志等工具
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── components/   # 页面组件
+│   │   ├── services/     # API / 姿态识别
+│   │   └── utils/        # 测量 / 下载报告
+│   └── package.json
+├── start-backend.sh
+├── start-frontend.sh
+└── start-all.sh
+```
+
+## 运行要求
+
+开发环境需要：
+
+- Python 3.11 或更高
+- Node.js 18 或更高
+- npm
+
+说明：
+
+- Python 用于后端 API 和 AI 调用
+- Node.js 只用于前端开发/构建，不再涉及旧版 Node/Next.js 项目结构
+
+## 快速启动
+
+### 一键启动
 
 ```bash
 cd /opt/Spinal-Python
 bash start-all.sh
 ```
 
-访问：http://localhost:5173 (前端) 或 http://localhost:8101 (后端 API)
+默认地址：
 
-### 方式 2：分别启动
+- 前端：`http://localhost:5173`
+- 后端：`http://localhost:8101`
 
-**启动后端：**
+### 分别启动
+
+后端：
+
 ```bash
 cd /opt/Spinal-Python
 bash start-backend.sh
 ```
 
-**启动前端（新终端）：**
+前端：
+
 ```bash
 cd /opt/Spinal-Python
 bash start-frontend.sh
 ```
 
-## 配置
+## 环境配置
 
-### 1. 配置 AI API
+首次启动后端时，如果 `backend/.env` 不存在，脚本会根据 `backend/.env.example` 自动生成。
 
-编辑 `backend/.env` 文件：
+重点配置项：
 
 ```env
 AI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-AI_API_KEY=your-api-key-here
+AI_API_KEY=your-api-key
 AI_MODEL=qwen-plus
 ```
 
-### 2. 数据库
+默认数据库为本地 SQLite：
 
-默认使用 SQLite（`backend/spinal.db`），无需额外配置。
-
-## 功能特性
-
-✅ 图像上传与拍摄
-✅ AI 骨骼检测（TensorFlow.js MoveNet）
-✅ 脊柱测量算法（Cobb 角、肩高差等）
-✅ 通义千问 AI 分析
-✅ 结果报告展示
-✅ 数据持久化存储
-✅ 低内存占用（< 700MB）
-
-## 技术栈
-
-**后端：**
-- Python 3.11
-- FastAPI 0.104
-- SQLAlchemy 2.0
-- SQLite
-
-**前端：**
-- Vue 3.4
-- Vite 5.0
-- TensorFlow.js 4.22
-- Axios 1.6
+- 路径：`backend/spinal.db`
 
 ## API 文档
 
 启动后访问：
-- Swagger UI: http://localhost:8100/api/docs
-- ReDoc: http://localhost:8100/api/redoc
 
-## 项目结构
+- Swagger UI：`http://localhost:8101/api/docs`
+- ReDoc：`http://localhost:8101/api/redoc`
 
-```
-/opt/Spinal-Python/
-├── backend/              # Python 后端
-│   ├── src/
-│   │   ├── main.py      # FastAPI 入口
-│   │   ├── api/         # API 路由
-│   │   ├── models/      # 数据模型
-│   │   ├── schemas/     # Pydantic 模式
-│   │   ├── services/    # 业务逻辑
-│   │   └── utils/       # 工具函数
-│   ├── requirements.txt
-│   └── .env
-├── frontend/            # Vue 3 前端
-│   ├── src/
-│   │   ├── App.vue
-│   │   ├── components/  # Vue 组件
-│   │   ├── services/    # API 客户端
-│   │   └── utils/       # 工具函数
-│   └── package.json
-├── start-backend.sh     # 后端启动脚本
-├── start-frontend.sh    # 前端启动脚本
-├── start-all.sh         # 一键启动
-└── README.md
-```
+## 前端说明
 
-## 内存监控
+前端当前是独立的 Vue 3 + Vite 项目。
 
-查看实时内存占用：
+主要页面职责：
 
-```bash
-# 后端内存
-curl http://localhost:8100/health
+- `ImageCapture.vue`：照片采集、姿态识别、移动端快捷操作
+- `ResultReport.vue`：指标、AI 分析、报告下载、移动端结果切换
+- `GuidedCamera.vue`：手机拍摄引导与相机控制
 
-# 系统内存
-free -h
-```
+## 常见问题
 
-## 与 Next.js 版本对比
+### 1. 后端启动失败
 
-| 特性 | Next.js 版本 | Python 版本 |
-|------|-------------|------------|
-| 开发模式内存 | 1.5-2GB | 400-700MB ✅ |
-| 启动时间 | 30-60s | 5-10s ✅ |
-| 数据持久化 | ❌ | ✅ |
-| 历史记录 | ❌ | ✅ |
-| 核心功能 | ✅ | ✅ |
+检查：
 
-## 故障排查
+- 是否已安装 Python 3
+- `backend/venv` 是否正常创建
+- 端口 `8101` 是否被占用
 
-### 后端启动失败
+### 2. 前端启动失败
+
+检查：
+
+- 是否已安装 Node.js 和 npm
+- `frontend/node_modules` 是否完整
+
+可以尝试：
 
 ```bash
-# 查看日志
-tail -f /opt/Spinal-Python/backend/logs/app.log
-
-# 检查端口占用
-lsof -i :8100
-```
-
-### 前端启动失败
-
-```bash
-# 重新安装依赖
-cd frontend
+cd /opt/Spinal-Python/frontend
 rm -rf node_modules package-lock.json
 npm install
 ```
 
-### AI 分析失败
+### 3. AI 报告生成失败
 
-检查 `backend/.env` 中的 API Key 是否正确。
+检查：
 
-## 生产部署
+- `backend/.env` 中的 `AI_API_KEY` 是否正确
+- `AI_BASE_URL` 和 `AI_MODEL` 是否可用
 
-### 构建前端
+### 4. 识别结果异常
+
+优先检查拍摄条件：
+
+- 背部是否完整入镜
+- 站姿是否自然
+- 光线是否均匀
+- 是否存在明显遮挡
+
+## 生产部署提示
+
+前端构建：
 
 ```bash
-cd frontend
+cd /opt/Spinal-Python/frontend
 npm run build
 ```
 
-### 启动生产服务
+后端启动：
 
 ```bash
-cd backend
+cd /opt/Spinal-Python/backend
 source venv/bin/activate
-uvicorn src.main:app --host 0.0.0.0 --port 8100
+uvicorn src.main:app --host 0.0.0.0 --port 8101
 ```
 
-前端构建产物会自动被后端服务。
+## 医疗免责声明
 
-## 开发团队
-
-- 架构设计：Claude (Anthropic)
-- 项目需求：用户
-
-## 许可证
-
-MIT License
-
----
-
-**⚠️ 重要提示：** 本工具仅供初步筛查参考，不能替代专业医疗诊断。
+本项目仅用于家庭初筛参考，不替代医生面诊，不替代影像学检查，也不等同于临床 Cobb 角诊断。

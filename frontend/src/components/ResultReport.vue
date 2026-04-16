@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-6 animate-slide-up">
+  <div class="space-y-4 sm:space-y-6 animate-slide-up">
     <div v-if="loading" class="rounded-[32px] border border-white/80 bg-white/90 p-12 shadow-[0_24px_60px_rgba(15,23,42,0.06)]">
       <div class="text-center">
         <Loader2 class="mx-auto h-12 w-12 animate-spin text-brand-teal" />
@@ -18,36 +18,36 @@
     </div>
 
     <div v-else class="space-y-6">
-      <div class="flex flex-col gap-3 rounded-[28px] border border-white/80 bg-white/88 px-5 py-4 shadow-[0_20px_60px_rgba(15,23,42,0.05)] sm:flex-row sm:items-center sm:justify-between">
-        <div class="flex items-center gap-3">
+      <div class="flex flex-col gap-3 rounded-[28px] border border-white/80 bg-white/88 px-4 py-3 shadow-[0_20px_60px_rgba(15,23,42,0.05)] sm:px-5 sm:py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-center gap-2 sm:gap-3">
           <button
             @click="handleRestart"
-            class="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-brand-teal hover:bg-brand-teal/5 hover:text-brand-teal"
+            class="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-brand-teal hover:bg-brand-teal/5 hover:text-brand-teal"
           >
             <ArrowLeft class="h-4 w-4" />
             返回重新上传
           </button>
-          <div class="text-sm text-slate-500">
+          <div class="hidden text-sm text-slate-500 sm:block">
             对结果有疑问时，建议回到上一页重新上传更标准的背部照片复测。
           </div>
         </div>
 
         <button
           @click="handleDownload"
-          class="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-900"
+          class="hidden items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-900 sm:inline-flex"
         >
           <Download class="h-4 w-4" />
           下载报告
         </button>
       </div>
 
-      <div class="sticky top-[5.5rem] z-20 rounded-[24px] border border-white/80 bg-white/92 p-2 shadow-[0_18px_40px_rgba(15,23,42,0.08)] backdrop-blur xl:hidden">
+      <div class="sticky top-[4.5rem] z-20 rounded-[22px] border border-white/80 bg-white/92 p-1.5 shadow-[0_18px_40px_rgba(15,23,42,0.08)] backdrop-blur xl:hidden">
         <div class="grid grid-cols-3 gap-2">
           <button
             v-for="tab in mobileResultTabs"
             :key="tab.id"
             @click="mobileResultTab = tab.id"
-            class="rounded-2xl px-3 py-3 text-sm font-semibold transition"
+            class="rounded-2xl px-2 py-2.5 text-sm font-semibold transition"
             :class="mobileResultTab === tab.id ? 'bg-slate-950 text-white shadow-sm' : 'bg-slate-50 text-slate-600'"
           >
             {{ tab.label }}
@@ -59,7 +59,7 @@
         class="overflow-hidden rounded-[32px] border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(240,248,255,0.92))] shadow-[0_34px_90px_rgba(15,23,42,0.08)]"
         :class="mobileResultTab === 'overview' ? 'block' : 'hidden xl:block'"
       >
-        <div class="grid gap-6 px-6 py-7 sm:px-8 sm:py-8 xl:grid-cols-[1.1fr,0.9fr]">
+        <div class="grid gap-4 px-4 py-5 sm:px-8 sm:py-8 xl:grid-cols-[1.1fr,0.9fr] xl:gap-6">
           <div class="space-y-5">
             <div class="flex flex-wrap items-center gap-3">
               <span class="rounded-full border border-slate-200 bg-white/90 px-4 py-2 text-sm font-medium text-slate-600">
@@ -72,8 +72,8 @@
 
             <div>
               <p class="text-xs font-semibold uppercase tracking-[0.24em] text-brand-navy/70">Result Overview</p>
-              <h2 class="mt-2 text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">筛查结果已经生成</h2>
-              <p class="mt-3 max-w-2xl text-base leading-7 text-slate-600 md:text-lg">
+              <h2 class="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-4xl md:text-5xl">筛查结果已经生成</h2>
+              <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base sm:leading-7 md:text-lg">
                 先看本次拍摄得到的核心指标，再阅读 AI 分析和建议。若结果提示异常，请把线上结果视为家庭初筛信号，而不是最终诊断。
               </p>
             </div>
@@ -108,7 +108,7 @@
         </div>
       </section>
 
-      <div class="gap-6 xl:grid-cols-[0.9fr,1.1fr]" :class="mobileResultTab === 'overview' ? 'grid' : 'hidden xl:grid'">
+      <div class="gap-4 xl:grid-cols-[0.9fr,1.1fr] xl:gap-6" :class="mobileResultTab === 'overview' ? 'grid' : 'hidden xl:grid'">
         <section v-if="reportMetrics" class="rounded-[32px] border border-white/80 bg-white/90 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.06)]">
           <div class="flex items-center justify-between gap-3">
             <div>
@@ -142,7 +142,7 @@
         </section>
       </div>
 
-      <div class="gap-6 xl:grid-cols-[1.15fr,0.85fr]" :class="mobileResultTab === 'analysis' || mobileResultTab === 'action' ? 'grid' : 'hidden xl:grid'">
+      <div class="gap-4 xl:grid-cols-[1.15fr,0.85fr] xl:gap-6" :class="mobileResultTab === 'analysis' || mobileResultTab === 'action' ? 'grid' : 'hidden xl:grid'">
         <section
           v-if="reportAiAnalysis && reportAiAnalysis.analysis"
           class="overflow-hidden rounded-[32px] border border-white/80 bg-white/90 shadow-[0_24px_60px_rgba(15,23,42,0.06)]"
@@ -243,7 +243,7 @@
             </div>
           </div>
 
-          <div class="rounded-[32px] border border-slate-200 bg-slate-950 p-6 text-white shadow-[0_24px_60px_rgba(15,23,42,0.16)]">
+          <div class="rounded-[32px] border border-slate-200 bg-slate-950 p-5 text-white shadow-[0_24px_60px_rgba(15,23,42,0.16)] sm:p-6">
             <p class="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200/80">Action</p>
             <h4 class="mt-2 text-2xl font-semibold">继续处理这次筛查</h4>
             <p class="mt-3 text-sm leading-7 text-slate-300">

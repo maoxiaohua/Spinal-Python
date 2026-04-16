@@ -1,20 +1,20 @@
 <template>
   <div class="app-shell min-h-screen text-slate-900">
     <header class="sticky top-0 z-40 border-b border-white/70 bg-white/78 backdrop-blur-xl">
-      <div class="mx-auto flex max-w-[1440px] items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-        <div class="flex items-center gap-4">
-          <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-teal to-brand-navy text-white shadow-[0_18px_40px_rgba(21,148,136,0.28)]">
-            <Activity class="h-7 w-7" />
+      <div class="mx-auto flex max-w-[1440px] items-center justify-between px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
+        <div class="flex items-center gap-3 sm:gap-4">
+          <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-teal to-brand-navy text-white shadow-[0_18px_40px_rgba(21,148,136,0.28)] sm:h-14 sm:w-14">
+            <Activity class="h-5 w-5 sm:h-7 sm:w-7" />
           </div>
 
           <div>
-            <div class="flex items-center gap-3">
-              <h1 class="text-2xl font-semibold tracking-tight text-slate-950">脊卫童行</h1>
+            <div class="flex items-center gap-2 sm:gap-3">
+              <h1 class="text-lg font-semibold tracking-tight text-slate-950 sm:text-2xl">脊卫童行</h1>
               <span class="hidden rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700 sm:inline-flex">
                 家庭脊柱初筛
               </span>
             </div>
-            <p class="text-sm text-slate-600">儿童脊柱健康筛查系统</p>
+            <p class="text-xs text-slate-600 sm:text-sm">儿童脊柱健康筛查系统</p>
           </div>
         </div>
 
@@ -33,7 +33,7 @@
 
     <main class="relative mx-auto max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
       <div class="space-y-6">
-        <div class="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-white/80 bg-white/68 px-5 py-4 shadow-[0_24px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+        <div class="hidden flex-wrap items-center justify-between gap-3 rounded-3xl border border-white/80 bg-white/68 px-5 py-4 shadow-[0_24px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:flex">
           <div>
             <p class="text-xs font-semibold uppercase tracking-[0.24em] text-brand-navy/70">Screening Journey</p>
             <p class="mt-1 text-sm text-slate-600">为家长设计的便捷筛查界面，先拍摄，再识别，再查看结果建议。</p>
@@ -61,7 +61,7 @@
       </div>
     </main>
 
-    <footer class="border-t border-white/70 bg-white/70 backdrop-blur-xl">
+    <footer class="hidden border-t border-white/70 bg-white/70 backdrop-blur-xl sm:block">
       <div class="mx-auto flex max-w-[1440px] flex-col gap-4 px-4 py-6 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
         <p class="flex items-start gap-2 text-sm text-slate-600">
           <AlertCircle class="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />

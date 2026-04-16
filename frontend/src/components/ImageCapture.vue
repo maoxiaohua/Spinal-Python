@@ -1,5 +1,5 @@
 <template>
-  <div class="animate-slide-up space-y-6" :class="imagePreview ? 'pb-[22rem] xl:pb-0' : 'pb-0'">
+  <div class="animate-slide-up space-y-4 sm:space-y-6" :class="imagePreview ? 'pb-[18.5rem] xl:pb-0' : 'pb-0'">
     <section class="hidden gap-6 xl:grid xl:grid-cols-[1.28fr,0.72fr]">
       <div class="overflow-hidden rounded-[32px] border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(240,248,248,0.9))] shadow-[0_34px_90px_rgba(15,23,42,0.08)]">
         <div class="relative overflow-hidden px-6 py-7 sm:px-8 sm:py-8">
@@ -140,7 +140,10 @@
       </div>
     </section>
 
-    <section class="xl:hidden rounded-[28px] border border-white/80 bg-white/90 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+    <section
+      v-if="!imagePreview"
+      class="xl:hidden rounded-[28px] border border-white/80 bg-white/90 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.06)]"
+    >
       <div class="flex items-center justify-between gap-3">
         <div>
           <p class="text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-navy/70">Mobile Workflow</p>
@@ -180,9 +183,12 @@
       </div>
     </section>
 
-    <div class="grid gap-6 xl:grid-cols-[1.08fr,0.92fr]">
+    <div class="grid gap-4 xl:grid-cols-[1.08fr,0.92fr] xl:gap-6">
       <section class="overflow-hidden rounded-[32px] border border-white/80 bg-white/92 shadow-[0_28px_80px_rgba(15,23,42,0.08)]">
-        <div class="flex flex-col gap-4 border-b border-slate-200/70 px-6 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+        <div
+          class="border-b border-slate-200/70 px-4 py-4 sm:px-7 sm:py-5"
+          :class="imagePreview ? 'hidden xl:flex xl:items-center xl:justify-between xl:gap-4' : 'flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'"
+        >
           <div>
             <p class="text-xs font-semibold uppercase tracking-[0.22em] text-brand-navy/70">Capture Console</p>
             <h3 class="mt-1 text-2xl font-semibold tracking-tight text-slate-950">上传或拍摄背部照片</h3>
@@ -199,7 +205,7 @@
           </div>
         </div>
 
-        <div class="p-6 sm:p-7">
+        <div class="p-4 sm:p-7">
           <input
             ref="fileInput"
             type="file"
@@ -254,9 +260,23 @@
             </div>
           </div>
 
-          <div v-else class="space-y-5">
+          <div v-else class="space-y-4">
+            <div class="xl:hidden flex items-center justify-between gap-2 rounded-[24px] border border-slate-200 bg-slate-50/90 px-4 py-3">
+              <div class="min-w-0">
+                <p class="truncate text-sm font-semibold text-slate-900">{{ selectedFileName || '当前照片' }}</p>
+                <p class="mt-1 text-xs text-slate-500">{{ statusLabel }} · {{ selectedSource || '等待照片来源' }}</p>
+              </div>
+              <button
+                @click="handleReset"
+                class="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600"
+                aria-label="重新选择照片"
+              >
+                <RefreshCw class="h-4 w-4" />
+              </button>
+            </div>
+
             <div class="overflow-hidden rounded-[28px] border border-slate-200 bg-slate-950/95">
-              <div class="flex items-center justify-between border-b border-white/10 px-5 py-3">
+              <div class="hidden items-center justify-between border-b border-white/10 px-5 py-3 xl:flex">
                 <div>
                   <p class="text-sm font-medium text-slate-200">当前样本</p>
                   <p class="mt-0.5 max-w-[15rem] truncate text-xs text-slate-400 sm:max-w-sm">{{ selectedFileName || '未命名图片' }}</p>
@@ -473,7 +493,7 @@
 
     <div
       v-if="imagePreview"
-      class="fixed inset-x-3 bottom-3 z-30 rounded-[30px] border border-slate-200/80 bg-white/95 p-4 shadow-[0_30px_80px_rgba(15,23,42,0.2)] backdrop-blur-xl xl:hidden"
+      class="fixed inset-x-3 bottom-3 z-30 rounded-[28px] border border-slate-200/80 bg-white/95 p-3 shadow-[0_24px_60px_rgba(15,23,42,0.2)] backdrop-blur-xl xl:hidden"
     >
       <div class="flex items-center justify-between gap-3">
         <div class="min-w-0">
@@ -485,19 +505,19 @@
         </span>
       </div>
 
-      <div class="mt-4 grid grid-cols-3 gap-2 rounded-2xl bg-slate-100/80 p-1">
+      <div class="mt-3 grid grid-cols-3 gap-1.5 rounded-2xl bg-slate-100/80 p-1">
         <button
           v-for="tab in mobileQuickTabs"
           :key="tab.id"
           @click="mobileQuickTab = tab.id"
-          class="rounded-2xl px-3 py-2 text-xs font-semibold transition"
+          class="rounded-2xl px-2 py-2 text-[11px] font-semibold transition"
           :class="mobileQuickTab === tab.id ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'"
         >
           {{ tab.label }}
         </button>
       </div>
 
-      <div class="mt-4 max-h-44 overflow-auto rounded-[24px] border border-slate-200 bg-slate-50/80 p-4">
+      <div class="mt-3 max-h-36 overflow-auto rounded-[24px] border border-slate-200 bg-slate-50/80 p-3">
         <div v-if="mobileQuickTab === 'status'" class="space-y-3">
           <div class="rounded-2xl border p-4" :class="statusPanelClass">
             <p class="text-sm font-semibold text-slate-900">{{ statusTitle }}</p>
@@ -567,7 +587,7 @@
         </div>
       </div>
 
-      <div class="mt-4 grid grid-cols-2 gap-2">
+      <div class="mt-3 grid grid-cols-2 gap-2">
         <button
           @click="handlePrimaryMobileAction"
           :disabled="primaryActionDisabled"
