@@ -14,8 +14,22 @@ export default defineConfig({
     }
   },
   build: {
+    target: ['chrome61', 'safari11'],
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('@tensorflow/') || id.includes('@mediapipe/')) {
+            return 'tfjs-pose'
+          }
+
+          if (id.includes('lucide-vue-next')) {
+            return 'ui-icons'
+          }
+        },
+      },
+    },
   }
 })

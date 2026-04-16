@@ -635,7 +635,6 @@ import {
   Activity,
   ArrowRight,
 } from 'lucide-vue-next'
-import { initPoseDetector, detectPose, drawPose } from '../services/poseDetection.js'
 import { calculateMetrics } from '../utils/measurement.js'
 import { uploadLandmarks } from '../services/api.js'
 import GuidedCamera from './GuidedCamera.vue'
@@ -663,6 +662,7 @@ export default {
   },
   emits: ['landmarks-detected', 'upload-complete'],
   setup(props, { emit }) {
+    const isWeChatWebView = detectWeChatWebView()
     const showGuidedCamera = ref(false)
     const fileInput = ref(null)
     const canvasElement = ref(null)
@@ -751,13 +751,18 @@ export default {
       },
     ]
 
-    onMounted(async () => {
-      try {
-        await initPoseDetector()
-        console.log('姿态检测模型已预加载')
-      } catch (err) {
-        console.error('模型预加载失败:', err)
-      }
+    onMounted(() => {
+      if (isWeChatWebView) return
+
+      scheduleDetectorPreload(async () => {
+        try {
+          const poseService = await loadPoseDetectionService()
+          await poseService.initPoseDetector()
+          console.log('姿态检测模型已预加载')
+        } catch (err) {
+          console.error('模型预加载失败:', err)
+        }
+      })
     })
 
     watch(status, (value) => {
@@ -1077,6 +1082,8 @@ export default {
       errorMessage.value = ''
 
       try {
+        const poseService = await loadPoseDetectionService()
+        await poseService.initPoseDetector()
         const sourceImage = await loadImageForDetection(imageSrc)
         pendingDetection.value = false
 
@@ -1085,7 +1092,7 @@ export default {
           drawSourceImage(canvasElement.value, sourceImage)
         }
 
-        const result = await detectPose(sourceImage)
+        const result = await poseService.detectPose(sourceImage)
 
         if (!result || !result.landmarks) {
           throw new Error('未检测到人体姿态，请确保照片中有完整的背部')
@@ -1103,7 +1110,7 @@ export default {
 
         if (canvasElement.value) {
           syncCanvasDisplaySize(canvasElement.value, imageWidth, imageHeight)
-          drawPose(canvasElement.value, result.keypoints, imageWidth, imageHeight, sourceImage)
+          poseService.drawPose(canvasElement.value, result.keypoints, imageWidth, imageHeight, sourceImage)
         }
 
         status.value = 'detected'
@@ -1112,7 +1119,7 @@ export default {
         console.error('姿态检测失败:', err)
         pendingDetection.value = false
         status.value = 'error'
-        errorMessage.value = err.message || '检测失败，请重试'
+        errorMessage.value = normalizeDetectionError(err, isWeChatWebView)
       }
     }
 
@@ -1213,6 +1220,51 @@ export default {
 
 function formatDebugValue(value) {
   return typeof value === 'number' ? value.toFixed(4) : 'N/A'
+}
+
+let poseDetectionServicePromise = null
+
+function loadPoseDetectionService() {
+  if (!poseDetectionServicePromise) {
+    poseDetectionServicePromise = import('../services/poseDetection.js').catch((err) => {
+      poseDetectionServicePromise = null
+      throw err
+    })
+  }
+
+  return poseDetectionServicePromise
+}
+
+function detectWeChatWebView() {
+  if (typeof navigator === 'undefined') return false
+  return /MicroMessenger/i.test(navigator.userAgent || '')
+}
+
+function scheduleDetectorPreload(task) {
+  if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(() => {
+      task()
+    }, { timeout: 2500 })
+    return
+  }
+
+  window.setTimeout(task, 400)
+}
+
+function normalizeDetectionError(err, isWeChatWebView = false) {
+  const message = err?.message || '检测失败，请重试'
+
+  if (/backend|TensorFlow|MoveNet|WebGL|初始化/i.test(message)) {
+    return isWeChatWebView
+      ? '微信内置浏览器已切换为延迟加载模式，但当前设备仍未完成骨骼识别初始化，请稍后重试。'
+      : '骨骼识别模块初始化失败，请重新选择照片后再试。'
+  }
+
+  if (/Failed to fetch|Load failed|network/i.test(message)) {
+    return '骨骼识别模型加载失败，请检查当前网络后重试。'
+  }
+
+  return message
 }
 
 function loadImageForDetection(src) {
