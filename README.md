@@ -175,6 +175,35 @@ source venv/bin/activate
 uvicorn src.main:app --host 0.0.0.0 --port 8101
 ```
 
+### 配置开机自启
+
+项目已经提供 `systemd` 服务模板，后端会直接托管 `frontend/dist`：
+
+```bash
+cd /opt/Spinal-Python
+bash scripts/setup-production.sh
+sudo bash scripts/install-systemd-service.sh
+```
+
+常用命令：
+
+```bash
+sudo systemctl status spinal-python.service
+sudo systemctl restart spinal-python.service
+sudo systemctl enable spinal-python.service
+```
+
+服务启动后默认监听：
+
+- 页面和 API：`http://服务器IP:8101`
+- 健康检查：`http://服务器IP:8101/health`
+
+如果服务器前面有 `nginx`，建议把外部 HTTPS 入口统一反向代理到 `8101`，不要继续把首页代理到 Vite 开发端口 `5173`。仓库已提供参考配置：
+
+```bash
+/opt/Spinal-Python/deploy/nginx/spinal.conf
+```
+
 ## 医疗免责声明
 
 本项目仅用于家庭初筛参考，不替代医生面诊，不替代影像学检查，也不等同于临床 Cobb 角诊断。

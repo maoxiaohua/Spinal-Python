@@ -1,6 +1,11 @@
 """应用配置"""
-from pydantic_settings import BaseSettings
+from pathlib import Path
 from typing import List
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+BACKEND_DIR = Path(__file__).resolve().parents[1]
 
 
 class Settings(BaseSettings):
@@ -34,9 +39,22 @@ class Settings(BaseSettings):
     # 日志配置
     LOG_LEVEL: str = "INFO"
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    @field_validator("DEBUG", mode="before")
+    @classmethod
+    def normalize_debug(cls, value):
+        """兼容 release/debug 这类历史环境变量取值。"""
+        if isinstance(value, str):
+            lowered = value.strip().lower()
+            if lowered in {"release", "prod", "production"}:
+                return False
+            if lowered in {"debug", "dev", "development"}:
+                return True
+        return value
+
+    model_config = SettingsConfigDict(
+        env_file=BACKEND_DIR / ".env",
+        case_sensitive=True,
+    )
 
 
 settings = Settings()

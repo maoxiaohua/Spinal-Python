@@ -1,0 +1,15 @@
+[Unit]
+Description=Spinal Python Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/Spinal-Python/backend
+ExecStart=/opt/Spinal-Python/scripts/start-production.sh
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
