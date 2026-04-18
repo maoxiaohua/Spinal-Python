@@ -74,10 +74,13 @@
 </template>
 
 <script>
-import { ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { Activity, AlertCircle, Clock3, ShieldCheck } from 'lucide-vue-next'
 import ImageCapture from './components/ImageCapture.vue'
 import ResultReport from './components/ResultReport.vue'
+
+const RESULT_STATE_KEY = 'spinal-last-report-v1'
+const RESULT_STATE_MAX_AGE_MS = 12 * 60 * 60 * 1000
 
 export default {
   name: 'App',
@@ -94,6 +97,29 @@ export default {
     const sessionId = ref(null)
     const metrics = ref(null)
     const aiAnalysis = ref(null)
+
+    onMounted(() => {
+      const restored = restoreResultState()
+      if (!restored) return
+
+      currentStep.value = 'result'
+      sessionId.value = restored.sessionId
+      metrics.value = restored.metrics
+      aiAnalysis.value = restored.aiAnalysis
+    })
+
+    watch([currentStep, sessionId, metrics, aiAnalysis], () => {
+      if (currentStep.value !== 'result' || !sessionId.value) {
+        clearResultState()
+        return
+      }
+
+      persistResultState({
+        sessionId: sessionId.value,
+        metrics: metrics.value,
+        aiAnalysis: aiAnalysis.value,
+      })
+    }, { deep: true })
 
     const handleLandmarksDetected = (data) => {
       metrics.value = data.metrics
@@ -122,5 +148,49 @@ export default {
       handleRestart,
     }
   }
+}
+
+function persistResultState(state) {
+  if (typeof window === 'undefined') return
+
+  window.localStorage.setItem(RESULT_STATE_KEY, JSON.stringify({
+    ...state,
+    updatedAt: Date.now(),
+  }))
+}
+
+function restoreResultState() {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const raw = window.localStorage.getItem(RESULT_STATE_KEY)
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw)
+    if (!parsed?.sessionId || !parsed?.updatedAt) {
+      clearResultState()
+      return null
+    }
+
+    if (Date.now() - parsed.updatedAt > RESULT_STATE_MAX_AGE_MS) {
+      clearResultState()
+      return null
+    }
+
+    return {
+      sessionId: parsed.sessionId,
+      metrics: parsed.metrics || null,
+      aiAnalysis: parsed.aiAnalysis || null,
+    }
+  } catch (error) {
+    console.warn('恢复报告状态失败:', error)
+    clearResultState()
+    return null
+  }
+}
+
+function clearResultState() {
+  if (typeof window === 'undefined') return
+  window.localStorage.removeItem(RESULT_STATE_KEY)
 }
 </script>
