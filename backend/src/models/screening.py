@@ -16,8 +16,19 @@ class ScreeningSession(BaseModel):
     severity = Column(String(20), nullable=True)
     summary = Column(Text, nullable=True)
 
+    # 全身力线指标（Step 1 新增）
+    trunk_shift_norm = Column(Float, nullable=True)
+    head_tilt_deg = Column(Float, nullable=True)
+    ankle_compensation_ratio = Column(Float, nullable=True)
+
     # 骨骼坐标 (JSON)
     landmarks = Column(JSON, nullable=True)
+
+    # Adams前屈测试（Step 2 新增）
+    rib_hump_diff_norm = Column(Float, nullable=True)
+    rib_hump_side = Column(String(20), nullable=True)
+    rib_hump_severity = Column(String(20), nullable=True)
+    forward_bend_landmarks = Column(JSON, nullable=True)
 
     # AI 分析
     ai_analysis = Column(Text, nullable=True)

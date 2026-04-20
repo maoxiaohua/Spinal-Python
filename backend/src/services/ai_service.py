@@ -129,17 +129,55 @@ class AIService:
             else '高风险'
         )
 
-        return (
-            f"{quality_note}【测量数据】\n"
-            f"骨骼关键点数量：{landmarks_count} 个\n"
+        standing_block = (
             f"脊柱曲线角度：{metrics.get('spinalCurvatureDeg', 0):.1f}°\n"
             f"肩部倾角：{metrics.get('shoulderSlopeDeg', 0):.1f}°\n"
             f"骨盆倾角：{metrics.get('pelvisTiltDeg', 0):.1f}°\n"
-            f"系统判断：{severity_text}\n\n"
-            "请提供：\n"
-            "1. 健康等级（正常/轻度/中度/重度）及判断依据\n"
-            "2. 对应建议（复查频率、运动、生活调整、是否就医）\n"
-            "3. 一句重要提醒\n\n"
+        )
+
+        alignment_block = ""
+        if metrics.get('trunkShiftNorm') is not None:
+            alignment_block += f"躯干侧移（C7相对S1）：{metrics['trunkShiftNorm']:.3f}（>0.05提示明显偏移）\n"
+        if metrics.get('headTiltDeg') is not None:
+            alignment_block += f"头部倾斜角：{metrics['headTiltDeg']:.1f}°\n"
+        if metrics.get('ankleCompensationRatio') is not None:
+            alignment_block += f"踝部代偿比：{metrics['ankleCompensationRatio']:.3f}（>0.1提示代偿性重心偏移）\n"
+
+        adams_block = ""
+        if metrics.get('ribHumpDiffNorm') is not None:
+            side_map = {'left': '左侧', 'right': '右侧', 'symmetric': '对称'}
+            severity_map = {'none': '无', 'mild': '轻度', 'moderate': '中度', 'severe': '重度'}
+            adams_block = (
+                f"\n【Adams前屈试验】\n"
+                f"肋骨隆起高度差：{metrics['ribHumpDiffNorm']:.3f}（归一化）\n"
+                f"隆起侧：{side_map.get(metrics.get('ribHumpSide', ''), metrics.get('ribHumpSide', ''))}\n"
+                f"Adams试验严重程度：{severity_map.get(metrics.get('ribHumpSeverity', ''), metrics.get('ribHumpSeverity', ''))}\n"
+            )
+
+        if adams_block:
+            analysis_request = (
+                "请综合站立位和前屈试验结果提供：\n"
+                "1. 综合健康等级（正常/轻度/中度/重度）及判断依据\n"
+                "2. Adams试验结果解读（肋骨隆起是否提示结构性侧弯）\n"
+                "3. 建议（复查频率、运动、是否就医）\n"
+                "4. 一句重要提醒\n"
+            )
+        else:
+            analysis_request = (
+                "请提供：\n"
+                "1. 健康等级（正常/轻度/中度/重度）及判断依据\n"
+                "2. 对应建议（复查频率、运动、生活调整、是否就医）\n"
+                "3. 一句重要提醒\n"
+            )
+
+        return (
+            f"{quality_note}【测量数据】\n"
+            f"骨骼关键点数量：{landmarks_count} 个\n"
+            f"{standing_block}"
+            f"{alignment_block}"
+            f"系统判断：{severity_text}\n"
+            f"{adams_block}\n"
+            f"{analysis_request}\n"
             "分段清晰，语言简洁，适合家长阅读。"
         )
 

@@ -14,6 +14,10 @@ class SpineMeasurement:
     RIGHT_HIP = 24
     LEFT_KNEE = 25
     RIGHT_KNEE = 26
+    LEFT_EAR = 7
+    RIGHT_EAR = 8
+    LEFT_ANKLE = 27
+    RIGHT_ANKLE = 28
 
     SEVERITY_SUMMARY = {
         "balanced": "脊柱形态正常，肩骨盆基本平衡。建议保持良好站姿和运动习惯。",
@@ -137,19 +141,28 @@ class SpineMeasurement:
         curvature: float,
         shoulder_angle: float,
         pelvis_angle: float,
-        confidence: float
+        confidence: float,
+        trunk_shift: Optional[float] = None,
+        rib_hump_severity: Optional[str] = None,
     ) -> str:
         """分类严重程度"""
+        if rib_hump_severity in ('severe', 'moderate'):
+            return 'alert'
+        if rib_hump_severity == 'mild':
+            return 'attention'
+
         if confidence < 0.6:
-            return "attention"
+            return 'attention'
+
+        if trunk_shift is not None and abs(trunk_shift) > 0.05:
+            return 'attention'
 
         max_angle = max(curvature, abs(shoulder_angle), abs(pelvis_angle))
-
         if max_angle < 8:
-            return "balanced"
+            return 'balanced'
         if max_angle < 15:
-            return "attention"
-        return "alert"
+            return 'attention'
+        return 'alert'
 
     @classmethod
     def calculate_metrics(
@@ -206,9 +219,33 @@ class SpineMeasurement:
             math.atan2(r_hip.y - l_hip.y, r_hip.x - l_hip.x)
         ))
 
-        # 分类严重程度
+        # 全身力线指标（可选，依赖耳部和踝部关键点）
+        l_ear = cls.pick_landmark(landmarks, cls.LEFT_EAR)
+        r_ear = cls.pick_landmark(landmarks, cls.RIGHT_EAR)
+        l_ankle = cls.pick_landmark(landmarks, cls.LEFT_ANKLE)
+        r_ankle = cls.pick_landmark(landmarks, cls.RIGHT_ANKLE)
+
+        trunk_shift_norm = None
+        head_tilt_deg = None
+        ankle_compensation_ratio = None
+
+        trunk_shift_norm = round(shoulder_mid["x"] - hip_mid["x"], 4)
+
+        if l_ear and r_ear:
+            head_tilt_deg = round(math.degrees(math.atan2(r_ear.y - l_ear.y, r_ear.x - l_ear.x)), 2)
+
+        if l_ankle and r_ankle:
+            ankle_mid_x = (l_ankle.x + r_ankle.x) / 2
+            hip_width = abs(l_hip.x - r_hip.x)
+            if hip_width > 0:
+                ankle_compensation_ratio = round((ankle_mid_x - hip_mid["x"]) / hip_width, 4)
+
         severity = cls.classify_severity(
-            spinal_curvature_deg, shoulder_slope_deg, pelvis_tilt_deg, posture_confidence
+            spinal_curvature_deg,
+            shoulder_slope_deg,
+            pelvis_tilt_deg,
+            posture_confidence,
+            trunk_shift_norm,
         )
 
         return {
@@ -219,4 +256,44 @@ class SpineMeasurement:
             "postureConfidence": round(posture_confidence, 2),
             "severity": severity,
             "summary": cls.SEVERITY_SUMMARY[severity],
+            "trunkShiftNorm": trunk_shift_norm,
+            "headTiltDeg": head_tilt_deg,
+            "ankleCompensationRatio": ankle_compensation_ratio,
+        }
+
+    @classmethod
+    def calculate_forward_bend_metrics(cls, landmarks: List[Landmark]) -> Dict:
+        """计算前屈（Adams）测试指标"""
+        if len(landmarks) < 33:
+            raise ValueError(f"需要33个关键点，但只收到 {len(landmarks)} 个")
+
+        l_shoulder = cls.pick_landmark(landmarks, cls.LEFT_SHOULDER)
+        r_shoulder = cls.pick_landmark(landmarks, cls.RIGHT_SHOULDER)
+
+        if not l_shoulder or not r_shoulder:
+            raise ValueError("无法检测到肩部关键点，请确保背部完整入镜")
+
+        rib_hump_diff_norm = round(r_shoulder.y - l_shoulder.y, 4)
+        abs_rib_hump = abs(rib_hump_diff_norm)
+
+        if abs_rib_hump < 0.02:
+            rib_hump_side = "symmetric"
+        elif rib_hump_diff_norm > 0:
+            rib_hump_side = "left"
+        else:
+            rib_hump_side = "right"
+
+        if abs_rib_hump < 0.02:
+            rib_hump_severity = "none"
+        elif abs_rib_hump < 0.05:
+            rib_hump_severity = "mild"
+        elif abs_rib_hump < 0.10:
+            rib_hump_severity = "moderate"
+        else:
+            rib_hump_severity = "severe"
+
+        return {
+            "ribHumpDiffNorm": rib_hump_diff_norm,
+            "ribHumpSide": rib_hump_side,
+            "ribHumpSeverity": rib_hump_severity,
         }

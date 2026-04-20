@@ -21,6 +21,16 @@ class SpinePoseMetrics(BaseModel):
     postureConfidence: float = Field(..., ge=0, le=1, description="姿势质量评分")
     severity: str = Field(..., description="严重程度: balanced/attention/alert")
     summary: Optional[str] = Field(None, description="摘要")
+    trunkShiftNorm: Optional[float] = Field(None, description="躯干侧移（归一化，C7相对S1水平偏移）")
+    headTiltDeg: Optional[float] = Field(None, description="头部倾斜角（度，有符号）")
+    ankleCompensationRatio: Optional[float] = Field(None, description="踝部代偿比（无量纲）")
+
+
+class ForwardBendMetrics(BaseModel):
+    """Adams前屈测试指标"""
+    ribHumpDiffNorm: float = Field(..., description="肋骨隆起高度差（归一化）")
+    ribHumpSide: str = Field(..., description="隆起侧: left/right/symmetric")
+    ribHumpSeverity: str = Field(..., description="严重程度: none/mild/moderate/severe")
 
 
 class LandmarksUploadRequest(BaseModel):
@@ -28,6 +38,8 @@ class LandmarksUploadRequest(BaseModel):
     landmarks: List[Landmark] = Field(..., description="33个关键点")
     metrics: Optional[SpinePoseMetrics] = Field(None, description="测量指标")
     sessionId: Optional[str] = Field(None, description="会话ID")
+    forwardBendLandmarks: Optional[List[Landmark]] = Field(None, description="前屈照片关键点")
+    forwardBendMetrics: Optional[ForwardBendMetrics] = Field(None, description="前屈测试指标")
 
 
 class AIAnalysisResponse(BaseModel):
@@ -51,6 +63,7 @@ class ScreeningSessionResponse(BaseModel):
     sessionId: str
     status: str
     metrics: Optional[SpinePoseMetrics] = None
+    forwardBendMetrics: Optional[ForwardBendMetrics] = None
     aiAnalysis: Optional[AIAnalysisResponse] = None
     createdAt: datetime
 

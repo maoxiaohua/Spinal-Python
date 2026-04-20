@@ -5,6 +5,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import settings
@@ -72,6 +73,13 @@ async def health_check():
         "version": settings.APP_VERSION,
         "memory_mb": round(memory_mb, 2),
     }
+
+
+@app.api_route("/capture", methods=["GET", "HEAD"], include_in_schema=False)
+@app.api_route("/capture/", methods=["GET", "HEAD"], include_in_schema=False)
+async def redirect_capture():
+    """兼容旧入口，统一跳回首页。"""
+    return RedirectResponse(url="/", status_code=308)
 
 
 # 静态文件服务（前端构建产物）

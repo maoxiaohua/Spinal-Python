@@ -137,6 +137,30 @@
               <MetricCard label="脊柱曲线角度" :value="`${reportMetrics.spinalCurvatureDeg.toFixed(1)}°`" />
               <MetricCard label="姿势质量评分" :value="`${(reportMetrics.postureConfidence * 100).toFixed(0)}%`" />
               <MetricCard label="评估等级" :value="getSeverityText(reportMetrics.severity)" :severity="reportMetrics.severity" />
+              <MetricCard
+                v-if="reportMetrics.trunkShiftNorm != null"
+                label="躯干侧移"
+                :value="`${(reportMetrics.trunkShiftNorm * 100).toFixed(1)}%`"
+              />
+              <MetricCard
+                v-if="reportMetrics.headTiltDeg != null"
+                label="头部倾斜角"
+                :value="`${reportMetrics.headTiltDeg.toFixed(1)}°`"
+              />
+              <MetricCard
+                v-if="reportMetrics.ankleCompensationRatio != null"
+                label="踝部代偿比"
+                :value="reportMetrics.ankleCompensationRatio.toFixed(3)"
+              />
+            </div>
+
+            <div v-if="reportForwardBendMetrics" class="mt-4 rounded-[24px] border border-teal-200 bg-teal-50/60 p-4">
+              <p class="text-xs font-semibold uppercase tracking-[0.22em] text-teal-700">Adams前屈试验</p>
+              <div class="mt-3 grid gap-3 sm:grid-cols-3">
+                <MetricCard label="肋骨隆起差" :value="reportForwardBendMetrics.ribHumpDiffNorm.toFixed(3)" />
+                <MetricCard label="隆起侧" :value="{ left: '左侧', right: '右侧', symmetric: '对称' }[reportForwardBendMetrics.ribHumpSide] || reportForwardBendMetrics.ribHumpSide" />
+                <MetricCard label="Adams严重程度" :value="{ none: '无', mild: '轻度', moderate: '中度', severe: '重度' }[reportForwardBendMetrics.ribHumpSeverity] || reportForwardBendMetrics.ribHumpSeverity" />
+              </div>
             </div>
           </div>
         </section>
@@ -396,6 +420,10 @@ export default {
       type: Object,
       default: null,
     },
+    forwardBendMetrics: {
+      type: Object,
+      default: null,
+    },
   },
   emits: ['restart'],
   setup(props, { emit }) {
@@ -403,6 +431,7 @@ export default {
     const error = ref('')
     const reportMetrics = ref(props.metrics)
     const reportAiAnalysis = ref(props.aiAnalysis)
+    const reportForwardBendMetrics = ref(props.forwardBendMetrics)
     const mobileResultTab = ref('overview')
     const mobileResultTabs = [
       { id: 'overview', label: '结果' },
@@ -411,9 +440,7 @@ export default {
     ]
 
     onMounted(async () => {
-      if (!props.metrics || !props.aiAnalysis) {
-        await fetchReport()
-      }
+      if (props.sessionId) await fetchReport()
     })
 
     watch(() => props.metrics, (value) => {
@@ -422,6 +449,10 @@ export default {
 
     watch(() => props.aiAnalysis, (value) => {
       reportAiAnalysis.value = value
+    })
+
+    watch(() => props.forwardBendMetrics, (value) => {
+      reportForwardBendMetrics.value = value
     })
 
     const severityBadgeClass = computed(() => {
@@ -473,6 +504,7 @@ export default {
         console.log('获取报告成功:', data)
         reportMetrics.value = data.metrics || null
         reportAiAnalysis.value = data.aiAnalysis || null
+        reportForwardBendMetrics.value = data.forwardBendMetrics || null
       } catch (err) {
         console.error('获取报告失败:', err)
         error.value = '获取报告失败: ' + (err.response?.data?.detail || err.message)
@@ -515,6 +547,7 @@ export default {
       error,
       reportMetrics,
       reportAiAnalysis,
+      reportForwardBendMetrics,
       severityBadgeClass,
       severityPanelClass,
       followUpTitle,

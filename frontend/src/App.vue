@@ -40,15 +40,22 @@
           </div>
 
           <div class="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700">
-            <span class="h-2.5 w-2.5 rounded-full" :class="currentStep === 'capture' ? 'bg-brand-teal' : 'bg-brand-navy'"></span>
-            {{ currentStep === 'capture' ? '当前：拍摄与检测' : '当前：结果解读' }}
+            <span class="h-2.5 w-2.5 rounded-full" :class="currentStep === 'capture' ? 'bg-brand-teal' : currentStep === 'forward_bend' ? 'bg-amber-500' : 'bg-brand-navy'"></span>
+            {{ currentStep === 'capture' ? '当前：拍摄与检测' : currentStep === 'forward_bend' ? '当前：前屈测试' : '当前：结果解读' }}
           </div>
         </div>
 
         <ImageCapture
           v-if="currentStep === 'capture'"
           @landmarks-detected="handleLandmarksDetected"
+          @submit-ready="handleStandingComplete"
           @upload-complete="handleUploadComplete"
+        />
+
+        <ForwardBendCapture
+          v-if="currentStep === 'forward_bend'"
+          @forward-bend-complete="handleForwardBendComplete"
+          @skip="handleSkipForwardBend"
         />
 
         <ResultReport
@@ -56,6 +63,7 @@
           :session-id="sessionId"
           :metrics="metrics"
           :ai-analysis="aiAnalysis"
+          :forward-bend-metrics="forwardBendMetrics"
           @restart="handleRestart"
         />
       </div>
@@ -77,6 +85,7 @@
 import { onMounted, ref, watch } from 'vue'
 import { Activity, AlertCircle, Clock3, ShieldCheck } from 'lucide-vue-next'
 import ImageCapture from './components/ImageCapture.vue'
+import ForwardBendCapture from './components/ForwardBendCapture.vue'
 import ResultReport from './components/ResultReport.vue'
 
 const RESULT_STATE_KEY = 'spinal-last-report-v1'
@@ -86,6 +95,7 @@ export default {
   name: 'App',
   components: {
     ImageCapture,
+    ForwardBendCapture,
     ResultReport,
     Activity,
     AlertCircle,
@@ -97,6 +107,9 @@ export default {
     const sessionId = ref(null)
     const metrics = ref(null)
     const aiAnalysis = ref(null)
+    const forwardBendMetrics = ref(null)
+    const standingLandmarks = ref(null)
+    const standingMetrics = ref(null)
 
     onMounted(() => {
       const restored = restoreResultState()
@@ -123,6 +136,8 @@ export default {
 
     const handleLandmarksDetected = (data) => {
       metrics.value = data.metrics
+      standingLandmarks.value = data.landmarks
+      standingMetrics.value = data.metrics
     }
 
     const handleUploadComplete = (data) => {
@@ -131,11 +146,61 @@ export default {
       currentStep.value = 'result'
     }
 
+    // 站立照识别完成后，进入前屈步骤（不上传）
+    const handleStandingComplete = (data) => {
+      if (data?.landmarks) standingLandmarks.value = data.landmarks
+      if (data?.metrics) {
+        standingMetrics.value = data.metrics
+        metrics.value = data.metrics
+      }
+      currentStep.value = 'forward_bend'
+    }
+
+    const handleForwardBendComplete = async (data) => {
+      forwardBendMetrics.value = data.metrics
+      const { uploadLandmarks } = await import('./services/api.js')
+      try {
+        const response = await uploadLandmarks(
+          standingLandmarks.value,
+          standingMetrics.value,
+          null,
+          data.landmarks,
+          data.metrics,
+        )
+        sessionId.value = response.sessionId
+        aiAnalysis.value = response.aiAnalysis
+        currentStep.value = 'result'
+      } catch (err) {
+        console.error('上传失败:', err)
+      }
+    }
+
+    const handleSkipForwardBend = () => {
+      // 跳过前屈，直接上传站立照数据
+      if (!standingLandmarks.value) {
+        currentStep.value = 'capture'
+        return
+      }
+      import('./services/api.js').then(({ uploadLandmarks }) => {
+        uploadLandmarks(standingLandmarks.value, standingMetrics.value).then((response) => {
+          sessionId.value = response.sessionId
+          aiAnalysis.value = response.aiAnalysis
+          currentStep.value = 'result'
+        }).catch((err) => {
+          console.error('上传失败:', err)
+          currentStep.value = 'capture'
+        })
+      })
+    }
+
     const handleRestart = () => {
       currentStep.value = 'capture'
       sessionId.value = null
       metrics.value = null
       aiAnalysis.value = null
+      forwardBendMetrics.value = null
+      standingLandmarks.value = null
+      standingMetrics.value = null
     }
 
     return {
@@ -143,11 +208,14 @@ export default {
       sessionId,
       metrics,
       aiAnalysis,
+      forwardBendMetrics,
       handleLandmarksDetected,
       handleUploadComplete,
+      handleStandingComplete,
+      handleForwardBendComplete,
+      handleSkipForwardBend,
       handleRestart,
-    }
-  }
+    }  }
 }
 
 function persistResultState(state) {

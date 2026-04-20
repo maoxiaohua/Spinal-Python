@@ -8,6 +8,10 @@ const HIP_LEFT = 23
 const HIP_RIGHT = 24
 const KNEE_LEFT = 25
 const KNEE_RIGHT = 26
+const EAR_LEFT = 7
+const EAR_RIGHT = 8
+const ANKLE_LEFT = 27
+const ANKLE_RIGHT = 28
 
 const radToDeg = (r) => (r * 180) / Math.PI
 
@@ -66,9 +70,14 @@ const SEVERITY_SUMMARY = {
   alert: '检测到明显不对称，建议尽快到医院脊柱外科就诊，进行 X 光检查以确认 Cobb 角。'
 }
 
-function classifySeverity(curvature, shoulderAngle, pelvisAngle, confidence) {
+function classifySeverity(curvature, shoulderAngle, pelvisAngle, confidence, trunkShift = null, ribHumpSeverity = null) {
+  if (ribHumpSeverity === 'severe' || ribHumpSeverity === 'moderate') return 'alert'
+  if (ribHumpSeverity === 'mild') return 'attention'
+
   if (confidence < 0.6) return 'attention'
-  const maxAngle = Math.max(curvature, Math.abs(shoulderAngle), Math.abs(pelvisAngle))
+  if (trunkShift !== null && Math.abs(trunkShift) > 0.05) return 'attention'
+
+  let maxAngle = Math.max(curvature, Math.abs(shoulderAngle), Math.abs(pelvisAngle))
   if (maxAngle < 8) return 'balanced'
   if (maxAngle < 15) return 'attention'
   return 'alert'
@@ -99,7 +108,37 @@ export function calculateMetrics(landmarks, imageWidth = 640, imageHeight = 480)
   const shoulderSlopeDeg = Math.abs(radToDeg(Math.atan2(rShoulder.y - lShoulder.y, rShoulder.x - lShoulder.x)))
   const pelvisTiltDeg = Math.abs(radToDeg(Math.atan2(rHip.y - lHip.y, rHip.x - lHip.x)))
 
-  const severity = classifySeverity(spinalCurvatureDeg, shoulderSlopeDeg, pelvisTiltDeg, postureConfidence)
+  // 全身力线指标（可选，依赖耳部和踝部关键点）
+  const lEar = pickLandmark(landmarks, EAR_LEFT)
+  const rEar = pickLandmark(landmarks, EAR_RIGHT)
+  const lAnkle = pickLandmark(landmarks, ANKLE_LEFT)
+  const rAnkle = pickLandmark(landmarks, ANKLE_RIGHT)
+
+  let trunkShiftNorm = null
+  let headTiltDeg = null
+  let ankleCompensationRatio = null
+
+  trunkShiftNorm = +(shoulderMid.x - hipMid.x).toFixed(4)
+
+  if (lEar && rEar) {
+    headTiltDeg = +radToDeg(Math.atan2(rEar.y - lEar.y, rEar.x - lEar.x)).toFixed(2)
+  }
+
+  if (lAnkle && rAnkle) {
+    const ankleMidX = (lAnkle.x + rAnkle.x) / 2
+    const hipWidth = Math.abs(lHip.x - rHip.x)
+    if (hipWidth > 0) {
+      ankleCompensationRatio = +((ankleMidX - hipMid.x) / hipWidth).toFixed(4)
+    }
+  }
+
+  const severity = classifySeverity(
+    spinalCurvatureDeg,
+    shoulderSlopeDeg,
+    pelvisTiltDeg,
+    postureConfidence,
+    trunkShiftNorm
+  )
 
   return {
     shoulderHeightDiffPx: +shoulderHeightDiffPx.toFixed(1),
@@ -108,6 +147,42 @@ export function calculateMetrics(landmarks, imageWidth = 640, imageHeight = 480)
     spinalCurvatureDeg: +spinalCurvatureDeg.toFixed(2),
     postureConfidence: +postureConfidence.toFixed(2),
     severity,
-    summary: SEVERITY_SUMMARY[severity]
+    summary: SEVERITY_SUMMARY[severity],
+    trunkShiftNorm,
+    headTiltDeg,
+    ankleCompensationRatio,
+  }
+}
+
+export function calculateForwardBendMetrics(landmarks) {
+  if (!landmarks || landmarks.length < 33) {
+    throw new Error(`需要33个关键点，但只收到 ${landmarks?.length || 0} 个`)
+  }
+
+  const lShoulder = pickLandmark(landmarks, SHOULDER_LEFT)
+  const rShoulder = pickLandmark(landmarks, SHOULDER_RIGHT)
+
+  if (!lShoulder || !rShoulder) {
+    throw new Error('无法检测到肩部关键点，请确保背部完整入镜')
+  }
+
+  // 前屈时，左右肩高度差 = 肋骨隆起（正值=左侧更高=左侧隆起）
+  const ribHumpDiffNorm = +(rShoulder.y - lShoulder.y).toFixed(4)
+  const absRibHump = Math.abs(ribHumpDiffNorm)
+
+  const ribHumpSide = absRibHump < 0.02
+    ? 'symmetric'
+    : ribHumpDiffNorm > 0 ? 'left' : 'right'
+
+  const ribHumpSeverity = absRibHump < 0.02
+    ? 'none'
+    : absRibHump < 0.05 ? 'mild'
+    : absRibHump < 0.10 ? 'moderate'
+    : 'severe'
+
+  return {
+    ribHumpDiffNorm,
+    ribHumpSide,
+    ribHumpSeverity,
   }
 }

@@ -38,12 +38,18 @@ apiClient.interceptors.response.use(
 /**
  * 上传骨骼坐标
  */
-export async function uploadLandmarks(landmarks, metrics, sessionId = null) {
-  const response = await apiClient.post('/screening/landmarks', {
-    landmarks,
-    metrics,
-    sessionId,
-  })
+export async function uploadLandmarks(
+  landmarks,
+  metrics,
+  sessionId = null,
+  forwardBendLandmarks = null,
+  forwardBendMetrics = null
+) {
+  const payload = { landmarks, metrics, sessionId }
+  if (forwardBendLandmarks) payload.forwardBendLandmarks = forwardBendLandmarks
+  if (forwardBendMetrics) payload.forwardBendMetrics = forwardBendMetrics
+
+  const response = await apiClient.post('/screening/landmarks', payload)
   return response.data
 }
 

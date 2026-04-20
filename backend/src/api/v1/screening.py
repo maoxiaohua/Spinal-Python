@@ -14,6 +14,7 @@ from ...schemas.screening import (
     ScreeningSessionResponse,
     AIAnalysisResponse,
     SpinePoseMetrics,
+    ForwardBendMetrics,
 )
 from ...services.ai_service import ai_service
 from ...services.measurement import SpineMeasurement
@@ -43,6 +44,19 @@ async def upload_landmarks(
             metrics = request.metrics
             metrics_dict = metrics.model_dump()
 
+        if request.forwardBendMetrics:
+            final_severity = SpineMeasurement.classify_severity(
+                metrics_dict["spinalCurvatureDeg"],
+                metrics_dict["shoulderSlopeDeg"],
+                metrics_dict["pelvisTiltDeg"],
+                metrics_dict["postureConfidence"],
+                metrics_dict.get("trunkShiftNorm"),
+                request.forwardBendMetrics.ribHumpSeverity,
+            )
+            metrics_dict["severity"] = final_severity
+            metrics_dict["summary"] = SpineMeasurement.SEVERITY_SUMMARY[final_severity]
+            metrics = SpinePoseMetrics(**metrics_dict)
+
         # 创建筛查会话记录
         session = ScreeningSession(
             id=session_id,
@@ -54,8 +68,20 @@ async def upload_landmarks(
             posture_confidence=metrics.postureConfidence,
             severity=metrics.severity,
             summary=metrics.summary,
+            trunk_shift_norm=metrics.trunkShiftNorm,
+            head_tilt_deg=metrics.headTiltDeg,
+            ankle_compensation_ratio=metrics.ankleCompensationRatio,
             status="processing",
         )
+
+        # 保存前屈测试数据（如有）
+        if request.forwardBendMetrics:
+            fb = request.forwardBendMetrics
+            session.rib_hump_diff_norm = fb.ribHumpDiffNorm
+            session.rib_hump_side = fb.ribHumpSide
+            session.rib_hump_severity = fb.ribHumpSeverity
+        if request.forwardBendLandmarks:
+            session.forward_bend_landmarks = [lm.model_dump() for lm in request.forwardBendLandmarks]
 
         db.add(session)
         await db.commit()
@@ -63,9 +89,13 @@ async def upload_landmarks(
         log.info(f"筛查会话已创建: {session_id}")
 
         # 调用 AI 分析
+        ai_metrics = metrics_dict.copy()
+        if request.forwardBendMetrics:
+            ai_metrics.update(request.forwardBendMetrics.model_dump())
+
         ai_result = await ai_service.analyze_spine(
             landmarks_count=len(request.landmarks),
-            metrics=metrics_dict
+            metrics=ai_metrics
         )
 
         # 更新 AI 分析结果
@@ -127,6 +157,17 @@ async def get_analysis(
                 postureConfidence=session.posture_confidence,
                 severity=session.severity,
                 summary=session.summary,
+                trunkShiftNorm=session.trunk_shift_norm,
+                headTiltDeg=session.head_tilt_deg,
+                ankleCompensationRatio=session.ankle_compensation_ratio,
+            )
+
+        forward_bend_metrics = None
+        if session.rib_hump_diff_norm is not None:
+            forward_bend_metrics = ForwardBendMetrics(
+                ribHumpDiffNorm=session.rib_hump_diff_norm,
+                ribHumpSide=session.rib_hump_side,
+                ribHumpSeverity=session.rib_hump_severity,
             )
 
         ai_analysis = None
@@ -142,6 +183,7 @@ async def get_analysis(
             sessionId=session.id,
             status=session.status,
             metrics=metrics,
+            forwardBendMetrics=forward_bend_metrics,
             aiAnalysis=ai_analysis,
             createdAt=session.created_at,
         )

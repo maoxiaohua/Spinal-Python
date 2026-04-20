@@ -660,7 +660,7 @@ export default {
     Activity,
     ArrowRight,
   },
-  emits: ['landmarks-detected', 'upload-complete'],
+  emits: ['landmarks-detected', 'upload-complete', 'submit-ready'],
   setup(props, { emit }) {
     const isWeChatWebView = detectWeChatWebView()
     const showGuidedCamera = ref(false)
@@ -936,7 +936,7 @@ export default {
 
     const metricCards = computed(() => {
       if (!metrics.value) return []
-      return [
+      const cards = [
         {
           label: '肩膀高度差',
           value: `${metrics.value.shoulderHeightDiffPx.toFixed(1)} px`,
@@ -958,6 +958,28 @@ export default {
           tip: '仅供初筛参考，不等同于临床 Cobb 角。',
         },
       ]
+      if (metrics.value.trunkShiftNorm !== null && metrics.value.trunkShiftNorm !== undefined) {
+        cards.push({
+          label: '躯干侧移',
+          value: `${(metrics.value.trunkShiftNorm * 100).toFixed(1)}%`,
+          tip: '正值=向右偏移，>5% 提示明显侧移（C7相对S1）。',
+        })
+      }
+      if (metrics.value.headTiltDeg !== null && metrics.value.headTiltDeg !== undefined) {
+        cards.push({
+          label: '头部倾斜角',
+          value: `${metrics.value.headTiltDeg.toFixed(1)}°`,
+          tip: '正值=右耳偏低，反映头部代偿性倾斜。',
+        })
+      }
+      if (metrics.value.ankleCompensationRatio !== null && metrics.value.ankleCompensationRatio !== undefined) {
+        cards.push({
+          label: '踝部代偿比',
+          value: metrics.value.ankleCompensationRatio.toFixed(3),
+          tip: '>0.1 提示重心代偿性偏移，可能与脊柱侧弯相关。',
+        })
+      }
+      return cards
     })
 
     const mobileHintText = computed(() => {
@@ -1125,6 +1147,12 @@ export default {
 
     const handleUpload = async () => {
       if (!landmarks.value || !metrics.value) return
+      // 先通知父组件"准备提交"，父组件决定是否进入前屈步骤
+      emit('submit-ready', { landmarks: landmarks.value, metrics: metrics.value })
+    }
+
+    const doUpload = async () => {
+      if (!landmarks.value || !metrics.value) return
 
       status.value = 'uploading'
 
@@ -1213,6 +1241,7 @@ export default {
       handleGuidedCapture,
       handlePrimaryMobileAction,
       handleUpload,
+      doUpload,
       handleReset,
     }
   }
