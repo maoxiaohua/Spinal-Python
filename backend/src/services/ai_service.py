@@ -62,7 +62,11 @@ class AIService:
                                     "基于数据客观评估，区分姿势性问题和结构性侧弯。"
                                     "强调这是初筛，不能替代医学诊断。"
                                     "真实 Cobb 角需通过 X 光片测量。"
-                                    "分级：<8°正常，8-15°轻度，15-25°中度建议就医，>25°重度需立即就医。"
+                                    "分级采用四档：正常/轻度/中度/重度。"
+                                    "站立位脊柱曲线估计：<8°正常，8-15°轻度，15-25°中度，>=25°重度。"
+                                    "躯干侧移（C7相对S1）：<5%正常，5-10%轻度，10-20%中度，>=20%重度。"
+                                    "肩部或骨盆倾斜角：<2°正常，2-4°轻度，4-7°中度，>=7°重度。"
+                                    "综合结论按最高风险项确定，不要被较轻指标覆盖更重指标。"
                                 )
                             },
                             {
@@ -124,9 +128,11 @@ class AIService:
         )
         severity = metrics.get('severity', 'unknown')
         severity_text = (
-            '正常' if severity == 'balanced'
-            else '需关注' if severity == 'attention'
-            else '高风险'
+            '正常' if severity in ('normal', 'balanced')
+            else '轻度' if severity in ('mild', 'attention')
+            else '中度' if severity == 'moderate'
+            else '重度' if severity == 'severe'
+            else '未评估'
         )
 
         standing_block = (

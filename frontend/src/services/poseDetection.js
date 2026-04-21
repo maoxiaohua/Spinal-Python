@@ -16,6 +16,7 @@ import * as tf from '@tensorflow/tfjs'
 import * as poseDetection from '@tensorflow-models/pose-detection'
 import '@tensorflow/tfjs-backend-webgl'
 import '@tensorflow/tfjs-backend-cpu'
+import { calculateMetrics } from '../utils/measurement'
 
 const MOVENET_CONNECTIONS = [
   [0, 1], [0, 2], [1, 3], [2, 4],
@@ -171,7 +172,7 @@ function convertToMediaPipeFormat(keypoints, width, height) {
   return result
 }
 
-export function drawPose(canvas, keypoints, imageWidth, imageHeight, sourceImage = null) {
+export function drawPose(canvas, keypoints, imageWidth, imageHeight, sourceImage = null, measurementData = null) {
   const ctx = canvas.getContext('2d')
   canvas.width = imageWidth
   canvas.height = imageHeight
@@ -198,7 +199,7 @@ export function drawPose(canvas, keypoints, imageWidth, imageHeight, sourceImage
   })
 
   // 2. 按真实测量项绘制关键参考线
-  drawMeasurementOverlay(ctx, keypoints, imageWidth, imageHeight)
+  drawMeasurementOverlay(ctx, keypoints, imageWidth, imageHeight, measurementData)
 
   // 3. 关键点
   const spineIndices = new Set([5, 6, 11, 12, 3, 4, 15, 16])
@@ -219,7 +220,7 @@ function isUsablePoint(point) {
   return Boolean(point && (point.score ?? 0) >= 0.2)
 }
 
-function drawMeasurementOverlay(ctx, keypoints, imageWidth, imageHeight) {
+function drawMeasurementOverlay(ctx, keypoints, imageWidth, imageHeight, measurementData = null) {
   const leftShoulder = getUsablePoint(keypoints, MEASUREMENT_INDICES.leftShoulder)
   const rightShoulder = getUsablePoint(keypoints, MEASUREMENT_INDICES.rightShoulder)
   const leftHip = getUsablePoint(keypoints, MEASUREMENT_INDICES.leftHip)
@@ -231,6 +232,7 @@ function drawMeasurementOverlay(ctx, keypoints, imageWidth, imageHeight) {
 
   if (!leftShoulder || !rightShoulder || !leftHip || !rightHip) return
 
+  const metrics = resolveOverlayMetrics(measurementData, imageWidth, imageHeight)
   const shoulderMid = midpoint(leftShoulder, rightShoulder)
   const hipMid = midpoint(leftHip, rightHip)
   const overlayTop = Math.max(24, Math.min(shoulderMid.y, (leftEar?.y ?? shoulderMid.y)) - 48)
@@ -253,7 +255,7 @@ function drawMeasurementOverlay(ctx, keypoints, imageWidth, imageHeight) {
   drawLabel(ctx, {
     x: Math.max(leftShoulder.x, rightShoulder.x) + 18,
     y: shoulderMid.y - 18,
-    text: `肩 ${formatAngle(lineAngleDeg(leftShoulder, rightShoulder))}`,
+    text: `肩 ${formatAngle(metrics?.shoulderSlopeDeg ?? lineAngleDeg(leftShoulder, rightShoulder))}`,
     color: MEASUREMENT_COLORS.shoulder,
     maxWidth: imageWidth - 18,
   })
@@ -267,7 +269,7 @@ function drawMeasurementOverlay(ctx, keypoints, imageWidth, imageHeight) {
   drawLabel(ctx, {
     x: Math.max(leftHip.x, rightHip.x) + 18,
     y: hipMid.y - 18,
-    text: `盆 ${formatAngle(lineAngleDeg(leftHip, rightHip))}`,
+    text: `盆 ${formatAngle(metrics?.pelvisTiltDeg ?? lineAngleDeg(leftHip, rightHip))}`,
     color: MEASUREMENT_COLORS.pelvis,
     maxWidth: imageWidth - 18,
   })
@@ -285,7 +287,7 @@ function drawMeasurementOverlay(ctx, keypoints, imageWidth, imageHeight) {
   drawLabel(ctx, {
     x: Math.min(hipMid.x, shoulderMid.x) + Math.abs(shoulderMid.x - hipMid.x) / 2,
     y: shoulderMid.y + 22,
-    text: `躯干侧移 ${formatPercent((shoulderMid.x - hipMid.x) / Math.max(Math.abs(leftHip.x - rightHip.x), 1))}`,
+    text: `躯干侧移 ${formatPercent(metrics?.trunkShiftNorm ?? ((shoulderMid.x - hipMid.x) / Math.max(Math.abs(leftHip.x - rightHip.x), 1)))}`,
     color: torsoAxisColor,
     anchor: 'center',
     maxWidth: imageWidth - 18,
@@ -302,7 +304,7 @@ function drawMeasurementOverlay(ctx, keypoints, imageWidth, imageHeight) {
     drawLabel(ctx, {
       x: Math.max(leftEar.x, rightEar.x) + 18,
       y: earMid.y - 16,
-      text: `头 ${formatAngle(lineAngleDeg(leftEar, rightEar))}`,
+      text: `头 ${formatAngle(metrics?.headTiltDeg ?? lineAngleDeg(leftEar, rightEar))}`,
       color: MEASUREMENT_COLORS.head,
       maxWidth: imageWidth - 18,
     })
@@ -324,7 +326,7 @@ function drawMeasurementOverlay(ctx, keypoints, imageWidth, imageHeight) {
     drawLabel(ctx, {
       x: Math.min(hipMid.x, ankleMid.x) + Math.abs(ankleMid.x - hipMid.x) / 2,
       y: ankleMid.y - 16,
-      text: `踝代偿 ${formatRatio((ankleMid.x - hipMid.x) / hipWidth)}`,
+      text: `踝代偿 ${formatRatio(metrics?.ankleCompensationRatio ?? ((ankleMid.x - hipMid.x) / hipWidth))}`,
       color: MEASUREMENT_COLORS.ankle,
       anchor: 'center',
       maxWidth: imageWidth - 18,
@@ -346,6 +348,18 @@ function midpoint(a, b) {
 
 function lineAngleDeg(a, b) {
   return Math.abs((Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI)
+}
+
+function resolveOverlayMetrics(measurementData, imageWidth, imageHeight) {
+  if (measurementData?.metrics) return measurementData.metrics
+  if (!measurementData?.landmarks) return null
+
+  try {
+    return calculateMetrics(measurementData.landmarks, imageWidth, imageHeight)
+  } catch (error) {
+    console.warn('叠加层指标计算失败，回退到局部几何值', error)
+    return null
+  }
 }
 
 function formatAngle(value) {

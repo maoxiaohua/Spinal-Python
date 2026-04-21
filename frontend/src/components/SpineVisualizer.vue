@@ -162,6 +162,10 @@ export default {
       if (!props.metrics) return '#667eea'
       const severity = props.metrics.severity
       const colors = {
+        normal: '#4caf50',
+        mild: '#ff9800',
+        moderate: '#f97316',
+        severe: '#f44336',
         balanced: '#4caf50',
         attention: '#ff9800',
         alert: '#f44336'

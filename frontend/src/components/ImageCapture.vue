@@ -1,5 +1,5 @@
 <template>
-  <div class="animate-slide-up space-y-4 sm:space-y-6" :class="imagePreview ? 'pb-[18.5rem] xl:pb-0' : 'pb-0'">
+  <div class="animate-slide-up space-y-4 sm:space-y-6">
     <section class="hidden gap-6 xl:grid xl:grid-cols-[1.28fr,0.72fr]">
       <div class="overflow-hidden rounded-[32px] border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(240,248,248,0.9))] shadow-[0_34px_90px_rgba(15,23,42,0.08)]">
         <div class="relative overflow-hidden px-6 py-7 sm:px-8 sm:py-8">
@@ -491,78 +491,78 @@
       </aside>
     </div>
 
-    <div
+    <section
       v-if="imagePreview"
-      class="fixed inset-x-3 bottom-3 z-30 rounded-[28px] border border-slate-200/80 bg-white/95 p-3 shadow-[0_24px_60px_rgba(15,23,42,0.2)] backdrop-blur-xl xl:hidden"
+      class="space-y-4 xl:hidden"
     >
-      <div class="flex items-center justify-between gap-3">
-        <div class="min-w-0">
-          <p class="truncate text-sm font-semibold text-slate-900">{{ selectedFileName || '当前照片' }}</p>
-          <p class="mt-1 text-xs text-slate-500">{{ statusLabel }} · {{ selectedSource || '等待照片来源' }}</p>
+      <div class="rounded-[28px] border border-white/80 bg-white/92 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
+        <div class="flex items-center justify-between gap-3">
+          <div class="min-w-0">
+            <p class="truncate text-sm font-semibold text-slate-900">{{ selectedFileName || '当前照片' }}</p>
+            <p class="mt-1 text-xs text-slate-500">{{ statusLabel }} · {{ selectedSource || '等待照片来源' }}</p>
+          </div>
+          <span class="rounded-full px-3 py-1 text-xs font-semibold" :class="statusPillClass">
+            {{ statusLabel }}
+          </span>
         </div>
-        <span class="rounded-full px-3 py-1 text-xs font-semibold" :class="statusPillClass">
-          {{ statusLabel }}
-        </span>
+
+        <div class="mt-4 rounded-[24px] border p-4" :class="statusPanelClass">
+          <p class="text-sm font-semibold text-slate-900">{{ statusTitle }}</p>
+          <p class="mt-2 text-sm leading-6 text-slate-600">{{ statusDescription }}</p>
+        </div>
+
+        <div class="mt-4 space-y-2">
+          <div
+            v-for="item in nextActions.slice(0, 2)"
+            :key="item.title"
+            class="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3"
+          >
+            <p class="text-sm font-semibold text-slate-900">{{ item.title }}</p>
+            <p class="mt-1 text-xs leading-5 text-slate-600">{{ item.description }}</p>
+          </div>
+        </div>
       </div>
 
-      <div class="mt-3 grid grid-cols-3 gap-1.5 rounded-2xl bg-slate-100/80 p-1">
-        <button
-          v-for="tab in mobileQuickTabs"
-          :key="tab.id"
-          @click="mobileQuickTab = tab.id"
-          class="rounded-2xl px-2 py-2 text-[11px] font-semibold transition"
-          :class="mobileQuickTab === tab.id ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'"
-        >
-          {{ tab.label }}
-        </button>
+      <div class="rounded-[28px] border border-white/80 bg-white/92 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.22em] text-brand-navy/70">Metrics</p>
+            <h3 class="mt-1 text-lg font-semibold text-slate-950">当前骨骼识别结果</h3>
+          </div>
+          <span v-if="status === 'detected'" class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+            可提交分析
+          </span>
+        </div>
+
+        <div v-if="metrics" class="mt-4 grid grid-cols-2 gap-2">
+          <div
+            v-for="item in metricCards"
+            :key="item.label"
+            class="rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-3"
+          >
+            <p class="text-[11px] text-slate-500">{{ item.label }}</p>
+            <p class="mt-1 text-lg font-semibold tracking-tight text-slate-950">{{ item.value }}</p>
+          </div>
+        </div>
+        <div v-else class="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 px-4 py-4">
+          <p class="text-sm font-semibold text-slate-900">识别完成后这里会出现核心指标</p>
+          <p class="mt-2 text-xs leading-5 text-slate-600">先看肩线、骨盆和脊柱曲线估计，再决定是否提交分析。</p>
+        </div>
       </div>
 
-      <div class="mt-3 max-h-36 overflow-auto rounded-[24px] border border-slate-200 bg-slate-50/80 p-3">
-        <div v-if="mobileQuickTab === 'status'" class="space-y-3">
-          <div class="rounded-2xl border p-4" :class="statusPanelClass">
-            <p class="text-sm font-semibold text-slate-900">{{ statusTitle }}</p>
-            <p class="mt-2 text-sm leading-6 text-slate-600">{{ statusDescription }}</p>
-          </div>
-          <div class="space-y-2">
-            <div
-              v-for="item in nextActions.slice(0, 2)"
-              :key="item.title"
-              class="rounded-2xl border border-slate-200 bg-white px-4 py-3"
-            >
-              <p class="text-sm font-semibold text-slate-900">{{ item.title }}</p>
-              <p class="mt-1 text-xs leading-5 text-slate-600">{{ item.description }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div v-else-if="mobileQuickTab === 'metrics'" class="space-y-3">
-          <div v-if="metrics" class="grid grid-cols-2 gap-2">
-            <div
-              v-for="item in metricCards.slice(0, 4)"
-              :key="item.label"
-              class="rounded-2xl border border-slate-200 bg-white px-3 py-3"
-            >
-              <p class="text-[11px] text-slate-500">{{ item.label }}</p>
-              <p class="mt-1 text-lg font-semibold tracking-tight text-slate-950">{{ item.value }}</p>
-            </div>
-          </div>
-          <div v-else class="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-4">
-            <p class="text-sm font-semibold text-slate-900">识别完成后这里会出现核心指标</p>
-            <p class="mt-2 text-xs leading-5 text-slate-600">先看肩线、骨盆和脊柱曲线估计，再决定是否提交分析。</p>
-          </div>
-        </div>
-
-        <div v-else class="space-y-3">
+      <details class="rounded-[28px] border border-white/80 bg-white/92 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
+        <summary class="cursor-pointer text-sm font-semibold text-slate-900">查看调试摘要</summary>
+        <div class="mt-4 space-y-3">
           <div v-if="debugSummary" class="grid grid-cols-3 gap-2">
-            <div class="rounded-2xl border border-slate-200 bg-white px-3 py-3">
+            <div class="rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-3">
               <p class="text-[11px] text-slate-500">置信度</p>
               <p class="mt-1 text-lg font-semibold text-slate-950">{{ debugSummary.poseScore }}</p>
             </div>
-            <div class="rounded-2xl border border-slate-200 bg-white px-3 py-3">
+            <div class="rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-3">
               <p class="text-[11px] text-slate-500">可见点</p>
               <p class="mt-1 text-lg font-semibold text-slate-950">{{ debugSummary.visibleKeypoints }}/17</p>
             </div>
-            <div class="rounded-2xl border border-slate-200 bg-white px-3 py-3">
+            <div class="rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-3">
               <p class="text-[11px] text-slate-500">图像</p>
               <p class="mt-1 text-sm font-semibold text-slate-950">{{ debugSummary.imageSize }}</p>
             </div>
@@ -571,7 +571,7 @@
             <div
               v-for="group in debugLandmarkGroups.slice(0, 4)"
               :key="group.id"
-              class="rounded-2xl border border-slate-200 bg-white px-3 py-3"
+              class="rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-3"
             >
               <p class="text-xs font-semibold text-slate-900">{{ group.title }}</p>
               <p class="mt-1 font-mono text-[11px] leading-5 text-slate-600">
@@ -580,14 +580,14 @@
               </p>
             </div>
           </div>
-          <div v-else class="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-4">
+          <div v-else class="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 px-4 py-4">
             <p class="text-sm font-semibold text-slate-900">调试数据会在识别后显示</p>
             <p class="mt-2 text-xs leading-5 text-slate-600">主要用于快速确认模型是否抓到了合理的肩和髋代理点。</p>
           </div>
         </div>
-      </div>
+      </details>
 
-      <div class="mt-3 grid grid-cols-2 gap-2">
+      <div class="grid grid-cols-2 gap-2">
         <button
           @click="handlePrimaryMobileAction"
           :disabled="primaryActionDisabled"
@@ -605,7 +605,7 @@
           重新选择
         </button>
       </div>
-    </div>
+    </section>
 
     <GuidedCamera
       v-if="showGuidedCamera"
@@ -678,12 +678,6 @@ export default {
     const selectedFileName = ref('')
     const selectedSource = ref('')
     const pendingDetection = ref(false)
-    const mobileQuickTab = ref('status')
-    const mobileQuickTabs = [
-      { id: 'status', label: '进度' },
-      { id: 'metrics', label: '指标' },
-      { id: 'debug', label: '调试' },
-    ]
 
     const trustHighlights = [
       {
@@ -763,14 +757,6 @@ export default {
           console.error('模型预加载失败:', err)
         }
       })
-    })
-
-    watch(status, (value) => {
-      if (value === 'detected') {
-        mobileQuickTab.value = 'metrics'
-      } else if (value === 'error') {
-        mobileQuickTab.value = 'status'
-      }
     })
 
     const statusLabel = computed(() => {
@@ -983,10 +969,10 @@ export default {
     })
 
     const mobileHintText = computed(() => {
-      if (status.value === 'detected') return '底部托盘里直接看指标并提交分析'
-      if (status.value === 'detecting') return '等待识别结束，指标会自动进入当前屏幕'
+      if (status.value === 'detected') return '图片下方会直接展示指标和提交按钮'
+      if (status.value === 'detecting') return '等待识别结束，结果会直接显示在图片下方'
       if (status.value === 'error') return '建议直接重新选图，不必再往下翻找按钮'
-      if (imagePreview.value) return '当前照片已载入，底部托盘会持续显示操作入口'
+      if (imagePreview.value) return '当前照片已载入，操作和指标会跟在图片下方'
       return '先拍摄或上传，再在同一屏查看识别结果'
     })
 
@@ -1132,7 +1118,10 @@ export default {
 
         if (canvasElement.value) {
           syncCanvasDisplaySize(canvasElement.value, imageWidth, imageHeight)
-          poseService.drawPose(canvasElement.value, result.keypoints, imageWidth, imageHeight, sourceImage)
+          poseService.drawPose(canvasElement.value, result.keypoints, imageWidth, imageHeight, sourceImage, {
+            landmarks: result.landmarks,
+            metrics: metrics.value,
+          })
         }
 
         status.value = 'detected'
@@ -1191,8 +1180,6 @@ export default {
       if (fileInput.value) {
         fileInput.value.value = ''
       }
-
-      mobileQuickTab.value = 'status'
     }
 
     const handlePrimaryMobileAction = () => {
@@ -1209,8 +1196,6 @@ export default {
       selectedFileName,
       selectedSource,
       metrics,
-      mobileQuickTab,
-      mobileQuickTabs,
       mobileHintText,
       primaryActionLabel,
       primaryActionIcon,

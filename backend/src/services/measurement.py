@@ -20,9 +20,16 @@ class SpineMeasurement:
     RIGHT_ANKLE = 28
 
     SEVERITY_SUMMARY = {
-        "balanced": "脊柱形态正常，肩骨盆基本平衡。建议保持良好站姿和运动习惯。",
-        "attention": "检测到轻度不对称，建议 1-2 个月后复测。可加强核心肌群训练，注意书包重量和坐姿。",
-        "alert": "检测到明显不对称，建议尽快到医院脊柱外科就诊，进行 X 光检查以确认 Cobb 角。"
+        "normal": "脊柱形态整体平衡，当前未见明显异常。建议保持良好站姿和运动习惯，定期复查。",
+        "mild": "检测到轻度不对称，建议近期关注坐姿、站姿与核心肌群训练，并在 1-2 个月后复测。",
+        "moderate": "检测到中度异常，建议尽快到医院脊柱外科或康复科进一步评估，必要时结合影像检查确认。",
+        "severe": "检测到重度异常，建议尽快到医院脊柱外科就诊，并结合 X 光等影像检查进一步明确情况。"
+    }
+    SEVERITY_ORDER = {
+        "normal": 0,
+        "mild": 1,
+        "moderate": 2,
+        "severe": 3,
     }
 
     @staticmethod
@@ -146,23 +153,65 @@ class SpineMeasurement:
         rib_hump_severity: Optional[str] = None,
     ) -> str:
         """分类严重程度"""
-        if rib_hump_severity in ('severe', 'moderate'):
-            return 'alert'
-        if rib_hump_severity == 'mild':
-            return 'attention'
+        candidates = [
+            cls._classify_angle_severity(curvature),
+            cls._classify_tilt_severity(shoulder_angle),
+            cls._classify_tilt_severity(pelvis_angle),
+            cls._classify_trunk_shift_severity(trunk_shift),
+            cls._classify_confidence_severity(confidence),
+            cls._normalize_rib_hump_severity(rib_hump_severity),
+        ]
 
-        if confidence < 0.6:
-            return 'attention'
+        return max(candidates, key=lambda item: cls.SEVERITY_ORDER.get(item, -1))
 
-        if trunk_shift is not None and abs(trunk_shift) > 0.05:
-            return 'attention'
+    @classmethod
+    def _classify_angle_severity(cls, angle: float) -> str:
+        abs_angle = abs(angle)
+        if abs_angle < 8:
+            return "normal"
+        if abs_angle < 15:
+            return "mild"
+        if abs_angle < 25:
+            return "moderate"
+        return "severe"
 
-        max_angle = max(curvature, abs(shoulder_angle), abs(pelvis_angle))
-        if max_angle < 8:
-            return 'balanced'
-        if max_angle < 15:
-            return 'attention'
-        return 'alert'
+    @classmethod
+    def _classify_tilt_severity(cls, angle: float) -> str:
+        abs_angle = abs(angle)
+        if abs_angle < 2:
+            return "normal"
+        if abs_angle < 4:
+            return "mild"
+        if abs_angle < 7:
+            return "moderate"
+        return "severe"
+
+    @classmethod
+    def _classify_trunk_shift_severity(cls, trunk_shift: Optional[float]) -> str:
+        if trunk_shift is None:
+            return "normal"
+        abs_shift = abs(trunk_shift)
+        if abs_shift < 0.05:
+            return "normal"
+        if abs_shift < 0.10:
+            return "mild"
+        if abs_shift < 0.20:
+            return "moderate"
+        return "severe"
+
+    @classmethod
+    def _classify_confidence_severity(cls, confidence: float) -> str:
+        return "mild" if confidence < 0.6 else "normal"
+
+    @classmethod
+    def _normalize_rib_hump_severity(cls, rib_hump_severity: Optional[str]) -> str:
+        severity_map = {
+            "none": "normal",
+            "mild": "mild",
+            "moderate": "moderate",
+            "severe": "severe",
+        }
+        return severity_map.get(rib_hump_severity or "", "normal")
 
     @classmethod
     def calculate_metrics(
@@ -229,14 +278,15 @@ class SpineMeasurement:
         head_tilt_deg = None
         ankle_compensation_ratio = None
 
-        trunk_shift_norm = round(shoulder_mid["x"] - hip_mid["x"], 4)
+        hip_width = abs(l_hip.x - r_hip.x)
+        if hip_width > 0:
+            trunk_shift_norm = round((shoulder_mid["x"] - hip_mid["x"]) / hip_width, 4)
 
         if l_ear and r_ear:
             head_tilt_deg = round(math.degrees(math.atan2(r_ear.y - l_ear.y, r_ear.x - l_ear.x)), 2)
 
         if l_ankle and r_ankle:
             ankle_mid_x = (l_ankle.x + r_ankle.x) / 2
-            hip_width = abs(l_hip.x - r_hip.x)
             if hip_width > 0:
                 ankle_compensation_ratio = round((ankle_mid_x - hip_mid["x"]) / hip_width, 4)
 

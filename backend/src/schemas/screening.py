@@ -19,7 +19,7 @@ class SpinePoseMetrics(BaseModel):
     pelvisTiltDeg: float = Field(..., description="骨盆倾斜角（度）")
     spinalCurvatureDeg: float = Field(..., description="脊柱曲线角度（度）")
     postureConfidence: float = Field(..., ge=0, le=1, description="姿势质量评分")
-    severity: str = Field(..., description="严重程度: balanced/attention/alert")
+    severity: str = Field(..., description="严重程度: normal/mild/moderate/severe")
     summary: Optional[str] = Field(None, description="摘要")
     trunkShiftNorm: Optional[float] = Field(None, description="躯干侧移（归一化，C7相对S1水平偏移）")
     headTiltDeg: Optional[float] = Field(None, description="头部倾斜角（度，有符号）")

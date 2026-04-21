@@ -41,24 +41,7 @@
         </button>
       </div>
 
-      <div class="sticky top-[4.5rem] z-20 rounded-[22px] border border-white/80 bg-white/92 p-1.5 shadow-[0_18px_40px_rgba(15,23,42,0.08)] backdrop-blur xl:hidden">
-        <div class="grid grid-cols-3 gap-2">
-          <button
-            v-for="tab in mobileResultTabs"
-            :key="tab.id"
-            @click="mobileResultTab = tab.id"
-            class="rounded-2xl px-2 py-2.5 text-sm font-semibold transition"
-            :class="mobileResultTab === tab.id ? 'bg-slate-950 text-white shadow-sm' : 'bg-slate-50 text-slate-600'"
-          >
-            {{ tab.label }}
-          </button>
-        </div>
-      </div>
-
-      <section
-        class="overflow-hidden rounded-[32px] border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(240,248,255,0.92))] shadow-[0_34px_90px_rgba(15,23,42,0.08)]"
-        :class="mobileResultTab === 'overview' ? 'block' : 'hidden xl:block'"
-      >
+      <section class="overflow-hidden rounded-[32px] border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(240,248,255,0.92))] shadow-[0_34px_90px_rgba(15,23,42,0.08)]">
         <div class="grid gap-4 px-4 py-5 sm:px-8 sm:py-8 xl:grid-cols-[1.1fr,0.9fr] xl:gap-6">
           <div class="space-y-5">
             <div class="flex flex-wrap items-center gap-3">
@@ -108,7 +91,7 @@
         </div>
       </section>
 
-      <div class="gap-4 xl:grid-cols-[0.9fr,1.1fr] xl:gap-6" :class="mobileResultTab === 'overview' ? 'grid' : 'hidden xl:grid'">
+      <div class="grid gap-4 xl:grid-cols-[0.9fr,1.1fr] xl:gap-6">
         <section v-if="reportMetrics" class="rounded-[32px] border border-white/80 bg-white/90 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.06)]">
           <div class="flex items-center justify-between gap-3">
             <div>
@@ -166,11 +149,10 @@
         </section>
       </div>
 
-      <div class="gap-4 xl:grid-cols-[1.15fr,0.85fr] xl:gap-6" :class="mobileResultTab === 'analysis' || mobileResultTab === 'action' ? 'grid' : 'hidden xl:grid'">
+      <div class="grid gap-4 xl:grid-cols-[1.15fr,0.85fr] xl:gap-6">
         <section
           v-if="reportAiAnalysis && reportAiAnalysis.analysis"
           class="overflow-hidden rounded-[32px] border border-white/80 bg-white/90 shadow-[0_24px_60px_rgba(15,23,42,0.06)]"
-          :class="mobileResultTab === 'analysis' ? 'block' : 'hidden xl:block'"
         >
           <div class="flex items-center justify-between gap-3 border-b border-slate-200/70 px-6 py-5">
             <div>
@@ -252,7 +234,7 @@
           </div>
         </section>
 
-        <section class="space-y-4" :class="mobileResultTab === 'action' ? 'block' : 'hidden xl:block'">
+        <section class="space-y-4">
           <div class="rounded-[32px] border border-amber-200 bg-[linear-gradient(160deg,rgba(255,251,235,0.98),rgba(254,243,199,0.78))] p-6 shadow-[0_18px_40px_rgba(217,119,6,0.08)]">
             <div class="flex items-start gap-3">
               <AlertCircle class="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600" />
@@ -432,12 +414,6 @@ export default {
     const reportMetrics = ref(props.metrics)
     const reportAiAnalysis = ref(props.aiAnalysis)
     const reportForwardBendMetrics = ref(props.forwardBendMetrics)
-    const mobileResultTab = ref('overview')
-    const mobileResultTabs = [
-      { id: 'overview', label: '结果' },
-      { id: 'analysis', label: 'AI 解读' },
-      { id: 'action', label: '操作' },
-    ]
 
     onMounted(async () => {
       if (props.sessionId) await fetchReport()
@@ -457,6 +433,10 @@ export default {
 
     const severityBadgeClass = computed(() => {
       const map = {
+        normal: 'border border-emerald-200 bg-emerald-50 text-emerald-700',
+        mild: 'border border-amber-200 bg-amber-50 text-amber-700',
+        moderate: 'border border-orange-200 bg-orange-50 text-orange-700',
+        severe: 'border border-rose-200 bg-rose-50 text-rose-700',
         balanced: 'border border-emerald-200 bg-emerald-50 text-emerald-700',
         attention: 'border border-amber-200 bg-amber-50 text-amber-700',
         alert: 'border border-rose-200 bg-rose-50 text-rose-700',
@@ -466,6 +446,10 @@ export default {
 
     const severityPanelClass = computed(() => {
       const map = {
+        normal: 'border-emerald-200 bg-emerald-50 text-emerald-950',
+        mild: 'border-amber-200 bg-amber-50 text-amber-950',
+        moderate: 'border-orange-200 bg-orange-50 text-orange-950',
+        severe: 'border-rose-200 bg-rose-50 text-rose-950',
         balanced: 'border-emerald-200 bg-emerald-50 text-emerald-950',
         attention: 'border-amber-200 bg-amber-50 text-amber-950',
         alert: 'border-rose-200 bg-rose-50 text-rose-950',
@@ -475,6 +459,10 @@ export default {
 
     const followUpTitle = computed(() => {
       const map = {
+        normal: '建议保持习惯并定期复查',
+        mild: '建议近期复测并加强姿势管理',
+        moderate: '建议尽快线下进一步评估',
+        severe: '建议尽快到医院脊柱专科就诊',
         balanced: '建议保持习惯并定期复查',
         attention: '建议 1-2 个月内复测并加强姿势管理',
         alert: '建议尽快线下就医进一步检查',
@@ -484,6 +472,10 @@ export default {
 
     const followUpDescription = computed(() => {
       const map = {
+        normal: '可以继续关注书包重量、坐姿和运动习惯，维持良好日常管理。',
+        mild: '建议结合核心肌群训练和日常姿势调整，并在近期安排复测。',
+        moderate: '线上结果提示中度异常，建议尽快到正规医院脊柱外科或康复科评估。',
+        severe: '线上结果提示重度异常，建议尽快到正规医院脊柱外科评估，并结合影像检查明确情况。',
         balanced: '可以继续关注书包重量、坐姿和运动习惯，维持良好日常管理。',
         attention: '建议结合核心肌群训练和日常姿势调整，并在近期安排复测。',
         alert: '线上结果提示风险较高，请尽快到正规医院脊柱外科评估。',
@@ -515,8 +507,12 @@ export default {
 
     const getSeverityText = (severity) => {
       const map = {
-        balanced: '平衡',
-        attention: '需关注',
+        normal: '正常',
+        mild: '轻度',
+        moderate: '中度',
+        severe: '重度',
+        balanced: '正常',
+        attention: '轻度',
         alert: '高风险',
       }
       return map[severity] || severity || '未评估'
@@ -528,14 +524,20 @@ export default {
       return date.toLocaleString('zh-CN')
     }
 
-    const handleDownload = () => {
+    const handleDownload = async () => {
       const data = {
         sessionId: props.sessionId,
         metrics: reportMetrics.value,
         aiAnalysis: reportAiAnalysis.value,
+        forwardBendMetrics: reportForwardBendMetrics.value,
         createdAt: Date.now(),
       }
-      downloadReport(data)
+      try {
+        await downloadReport(data)
+      } catch (err) {
+        console.error('下载报告失败:', err)
+        window.alert(err?.message || '下载报告失败，请稍后重试')
+      }
     }
 
     const handleRestart = () => {
@@ -554,8 +556,6 @@ export default {
       followUpDescription,
       analysisLead,
       analysisSections,
-      mobileResultTab,
-      mobileResultTabs,
       getSeverityText,
       formatTime,
       handleDownload,

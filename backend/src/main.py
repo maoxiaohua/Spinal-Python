@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import settings
@@ -80,6 +80,16 @@ async def health_check():
 async def redirect_capture():
     """兼容旧入口，统一跳回首页。"""
     return RedirectResponse(url="/", status_code=308)
+
+
+@app.api_route("/report/{session_id}", methods=["GET", "HEAD"], include_in_schema=False)
+@app.api_route("/report/{session_id}/", methods=["GET", "HEAD"], include_in_schema=False)
+async def report_entry(session_id: str):
+    """为每个分析会话提供独立的前端入口地址。"""
+    index_file = FRONTEND_DIST_DIR / "index.html"
+    if not index_file.exists():
+        return RedirectResponse(url="/", status_code=307)
+    return FileResponse(index_file)
 
 
 # 静态文件服务（前端构建产物）

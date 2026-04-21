@@ -9,10 +9,12 @@
             <p class="mt-1 text-sm text-slate-600">让孩子向前弯腰约 90°，从背后拍摄，用于检测肋骨隆起（Adams 试验）。</p>
           </div>
           <button
-            @click="$emit('skip')"
-            class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-100"
+            type="button"
+            :disabled="busy"
+            @click="handleSkip"
+            class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            跳过此步骤
+            {{ busy ? '处理中...' : '跳过此步骤' }}
           </button>
         </div>
       </div>
@@ -42,18 +44,27 @@
 
             <div class="mt-6 flex flex-col gap-3 sm:flex-row">
               <button
+                type="button"
+                :disabled="busy"
                 @click="triggerFileInput"
-                class="inline-flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-brand-teal px-6 py-4 text-base font-semibold text-white shadow-[0_18px_40px_rgba(20,184,166,0.28)] transition hover:-translate-y-0.5 hover:bg-teal-500"
+                class="inline-flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-brand-teal px-6 py-4 text-base font-semibold text-white shadow-[0_18px_40px_rgba(20,184,166,0.28)] transition hover:-translate-y-0.5 hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Camera class="h-5 w-5" />
                 拍摄或上传前屈照片
               </button>
               <button
-                @click="$emit('skip')"
-                class="inline-flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-4 text-base font-semibold text-slate-700 transition hover:border-slate-300"
+                type="button"
+                :disabled="busy"
+                @click="handleSkip"
+                class="inline-flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-4 text-base font-semibold text-slate-700 transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                跳过，仅用站立照分析
+                {{ busy ? '正在生成站立照报告...' : '跳过，仅用站立照分析' }}
               </button>
+            </div>
+
+            <div v-if="submitError" class="mt-4 rounded-[24px] border border-rose-200 bg-rose-50 p-4 text-left">
+              <p class="text-sm font-semibold text-rose-900">提交失败</p>
+              <p class="mt-1 text-sm text-rose-700">{{ submitError }}</p>
             </div>
           </div>
         </div>
@@ -68,6 +79,11 @@
           <div v-if="status === 'error'" class="rounded-[24px] border border-rose-200 bg-rose-50 p-4">
             <p class="text-sm font-semibold text-rose-900">识别失败</p>
             <p class="mt-1 text-sm text-rose-700">{{ errorMessage }}</p>
+          </div>
+
+          <div v-if="submitError" class="rounded-[24px] border border-rose-200 bg-rose-50 p-4">
+            <p class="text-sm font-semibold text-rose-900">提交失败</p>
+            <p class="mt-1 text-sm text-rose-700">{{ submitError }}</p>
           </div>
 
           <div v-if="ribHumpResult" class="rounded-[24px] border border-teal-200 bg-teal-50/60 p-4">
@@ -91,24 +107,30 @@
           <div class="flex flex-col gap-3 sm:flex-row">
             <button
               v-if="status === 'detected'"
+              type="button"
+              :disabled="busy"
               @click="handleSubmit"
-              class="inline-flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-6 py-4 text-base font-semibold text-white shadow-[0_18px_40px_rgba(15,23,42,0.2)] transition hover:-translate-y-0.5 hover:bg-slate-900"
+              class="inline-flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-6 py-4 text-base font-semibold text-white shadow-[0_18px_40px_rgba(15,23,42,0.2)] transition hover:-translate-y-0.5 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Send class="h-5 w-5" />
-              提交并生成综合报告
+              {{ busy ? '提交中...' : '提交并生成综合报告' }}
             </button>
             <button
+              type="button"
+              :disabled="busy"
               @click="handleReset"
-              class="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-4 text-base font-semibold text-slate-700 transition hover:border-slate-300 sm:min-w-44"
+              class="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-4 text-base font-semibold text-slate-700 transition hover:border-slate-300 sm:min-w-44 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <RefreshCw class="h-5 w-5" />
               重新拍摄
             </button>
             <button
-              @click="$emit('skip')"
-              class="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-4 text-base font-semibold text-slate-600 transition hover:border-slate-300 sm:min-w-44"
+              type="button"
+              :disabled="busy"
+              @click="handleSkip"
+              class="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-4 text-base font-semibold text-slate-600 transition hover:border-slate-300 sm:min-w-44 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              跳过此步骤
+              {{ busy ? '处理中...' : '跳过此步骤' }}
             </button>
           </div>
         </div>
@@ -125,6 +147,16 @@ import { calculateForwardBendMetrics } from '../utils/measurement.js'
 export default {
   name: 'ForwardBendCapture',
   components: { Camera, Send, RefreshCw, PersonStanding },
+  props: {
+    busy: {
+      type: Boolean,
+      default: false,
+    },
+    submitError: {
+      type: String,
+      default: '',
+    },
+  },
   emits: ['forward-bend-complete', 'skip'],
   setup(props, { emit }) {
     const fileInput = ref(null)
@@ -161,7 +193,15 @@ export default {
       return map[ribHumpResult.value?.ribHumpSeverity] || 'text-slate-950'
     })
 
-    const triggerFileInput = () => fileInput.value?.click()
+    const triggerFileInput = () => {
+      if (props.busy) return
+      fileInput.value?.click()
+    }
+
+    const handleSkip = () => {
+      if (props.busy) return
+      emit('skip')
+    }
 
     const handleFileSelect = (event) => {
       const file = event.target.files?.[0]
@@ -203,7 +243,9 @@ export default {
         landmarks.value = result.landmarks
 
         if (canvasElement.value) {
-          poseService.drawPose(canvasElement.value, result.keypoints, w, h, img)
+          poseService.drawPose(canvasElement.value, result.keypoints, w, h, img, {
+            landmarks: result.landmarks,
+          })
         }
 
         ribHumpResult.value = calculateForwardBendMetrics(result.landmarks)
@@ -243,6 +285,7 @@ export default {
       severityLabel,
       severityClass,
       triggerFileInput,
+      handleSkip,
       handleFileSelect,
       handleSubmit,
       handleReset,

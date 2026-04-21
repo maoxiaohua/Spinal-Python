@@ -26,6 +26,10 @@ export default {
     const getSeverityColor = (severity) => {
       if (!severity) return 'text-slate-950'
       const map = {
+        normal: 'text-emerald-700',
+        mild: 'text-amber-700',
+        moderate: 'text-orange-700',
+        severe: 'text-rose-700',
         balanced: 'text-emerald-700',
         attention: 'text-amber-700',
         alert: 'text-rose-700',

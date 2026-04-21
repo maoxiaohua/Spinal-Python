@@ -65,22 +65,73 @@ function assessPostureQuality(lShoulder, rShoulder, lHip, rHip, lKnee, rKnee) {
 }
 
 const SEVERITY_SUMMARY = {
-  balanced: '脊柱形态正常，肩骨盆基本平衡。建议保持良好站姿和运动习惯。',
-  attention: '检测到轻度不对称，建议 1-2 个月后复测。可加强核心肌群训练，注意书包重量和坐姿。',
-  alert: '检测到明显不对称，建议尽快到医院脊柱外科就诊，进行 X 光检查以确认 Cobb 角。'
+  normal: '脊柱形态整体平衡，当前未见明显异常。建议保持良好站姿和运动习惯，定期复查。',
+  mild: '检测到轻度不对称，建议近期关注坐姿、站姿与核心肌群训练，并在 1-2 个月后复测。',
+  moderate: '检测到中度异常，建议尽快到医院脊柱外科或康复科进一步评估，必要时结合影像检查确认。',
+  severe: '检测到重度异常，建议尽快到医院脊柱外科就诊，并结合 X 光等影像检查进一步明确情况。',
+}
+
+const SEVERITY_ORDER = {
+  normal: 0,
+  mild: 1,
+  moderate: 2,
+  severe: 3,
+}
+
+function pickHigherSeverity(current, next) {
+  return (SEVERITY_ORDER[next] ?? -1) > (SEVERITY_ORDER[current] ?? -1) ? next : current
+}
+
+function classifyAngleSeverity(angle) {
+  const absAngle = Math.abs(angle)
+  if (absAngle < 8) return 'normal'
+  if (absAngle < 15) return 'mild'
+  if (absAngle < 25) return 'moderate'
+  return 'severe'
+}
+
+function classifyTiltSeverity(angle) {
+  const absAngle = Math.abs(angle)
+  if (absAngle < 2) return 'normal'
+  if (absAngle < 4) return 'mild'
+  if (absAngle < 7) return 'moderate'
+  return 'severe'
+}
+
+function classifyTrunkShiftSeverity(trunkShift) {
+  if (trunkShift === null || trunkShift === undefined) return 'normal'
+  const absShift = Math.abs(trunkShift)
+  if (absShift < 0.05) return 'normal'
+  if (absShift < 0.1) return 'mild'
+  if (absShift < 0.2) return 'moderate'
+  return 'severe'
+}
+
+function classifyConfidenceSeverity(confidence) {
+  return confidence < 0.6 ? 'mild' : 'normal'
+}
+
+function normalizeRibHumpSeverity(ribHumpSeverity) {
+  const map = {
+    none: 'normal',
+    mild: 'mild',
+    moderate: 'moderate',
+    severe: 'severe',
+  }
+  return map[ribHumpSeverity] || 'normal'
 }
 
 function classifySeverity(curvature, shoulderAngle, pelvisAngle, confidence, trunkShift = null, ribHumpSeverity = null) {
-  if (ribHumpSeverity === 'severe' || ribHumpSeverity === 'moderate') return 'alert'
-  if (ribHumpSeverity === 'mild') return 'attention'
+  const candidates = [
+    classifyAngleSeverity(curvature),
+    classifyTiltSeverity(shoulderAngle),
+    classifyTiltSeverity(pelvisAngle),
+    classifyTrunkShiftSeverity(trunkShift),
+    classifyConfidenceSeverity(confidence),
+    normalizeRibHumpSeverity(ribHumpSeverity),
+  ]
 
-  if (confidence < 0.6) return 'attention'
-  if (trunkShift !== null && Math.abs(trunkShift) > 0.05) return 'attention'
-
-  let maxAngle = Math.max(curvature, Math.abs(shoulderAngle), Math.abs(pelvisAngle))
-  if (maxAngle < 8) return 'balanced'
-  if (maxAngle < 15) return 'attention'
-  return 'alert'
+  return candidates.reduce((highest, current) => pickHigherSeverity(highest, current), 'normal')
 }
 
 export function calculateMetrics(landmarks, imageWidth = 640, imageHeight = 480) {
@@ -118,7 +169,10 @@ export function calculateMetrics(landmarks, imageWidth = 640, imageHeight = 480)
   let headTiltDeg = null
   let ankleCompensationRatio = null
 
-  trunkShiftNorm = +(shoulderMid.x - hipMid.x).toFixed(4)
+  const hipWidth = Math.abs(lHip.x - rHip.x)
+  if (hipWidth > 0) {
+    trunkShiftNorm = +((shoulderMid.x - hipMid.x) / hipWidth).toFixed(4)
+  }
 
   if (lEar && rEar) {
     headTiltDeg = +radToDeg(Math.atan2(rEar.y - lEar.y, rEar.x - lEar.x)).toFixed(2)
@@ -126,7 +180,6 @@ export function calculateMetrics(landmarks, imageWidth = 640, imageHeight = 480)
 
   if (lAnkle && rAnkle) {
     const ankleMidX = (lAnkle.x + rAnkle.x) / 2
-    const hipWidth = Math.abs(lHip.x - rHip.x)
     if (hipWidth > 0) {
       ankleCompensationRatio = +((ankleMidX - hipMid.x) / hipWidth).toFixed(4)
     }

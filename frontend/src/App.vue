@@ -54,6 +54,8 @@
 
         <ForwardBendCapture
           v-if="currentStep === 'forward_bend'"
+          :busy="isSubmittingForwardBend"
+          :submit-error="forwardBendSubmitError"
           @forward-bend-complete="handleForwardBendComplete"
           @skip="handleSkipForwardBend"
         />
@@ -82,14 +84,16 @@
 </template>
 
 <script>
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { Activity, AlertCircle, Clock3, ShieldCheck } from 'lucide-vue-next'
 import ImageCapture from './components/ImageCapture.vue'
 import ForwardBendCapture from './components/ForwardBendCapture.vue'
 import ResultReport from './components/ResultReport.vue'
+import { uploadLandmarks } from './services/api.js'
 
 const RESULT_STATE_KEY = 'spinal-last-report-v1'
 const RESULT_STATE_MAX_AGE_MS = 12 * 60 * 60 * 1000
+const REPORT_ROUTE_PREFIX = '/report'
 
 export default {
   name: 'App',
@@ -110,15 +114,49 @@ export default {
     const forwardBendMetrics = ref(null)
     const standingLandmarks = ref(null)
     const standingMetrics = ref(null)
+    const isSubmittingForwardBend = ref(false)
+    const forwardBendSubmitError = ref('')
+
+    const applyLocationState = ({ allowRestore = false } = {}) => {
+      const routedSessionId = getSessionIdFromPath()
+      if (routedSessionId) {
+        currentStep.value = 'result'
+        sessionId.value = routedSessionId
+        forwardBendMetrics.value = null
+        standingLandmarks.value = null
+        standingMetrics.value = null
+
+        const restored = allowRestore ? restoreResultState() : null
+        if (restored?.sessionId === routedSessionId) {
+          metrics.value = restored.metrics || null
+          aiAnalysis.value = restored.aiAnalysis || null
+        } else {
+          metrics.value = null
+          aiAnalysis.value = null
+        }
+        return
+      }
+
+      currentStep.value = 'capture'
+      sessionId.value = null
+      metrics.value = null
+      aiAnalysis.value = null
+      forwardBendMetrics.value = null
+      standingLandmarks.value = null
+      standingMetrics.value = null
+    }
+
+    const handlePopState = () => {
+      applyLocationState()
+    }
 
     onMounted(() => {
-      const restored = restoreResultState()
-      if (!restored) return
+      applyLocationState({ allowRestore: true })
+      window.addEventListener('popstate', handlePopState)
+    })
 
-      currentStep.value = 'result'
-      sessionId.value = restored.sessionId
-      metrics.value = restored.metrics
-      aiAnalysis.value = restored.aiAnalysis
+    onUnmounted(() => {
+      window.removeEventListener('popstate', handlePopState)
     })
 
     watch([currentStep, sessionId, metrics, aiAnalysis], () => {
@@ -144,6 +182,7 @@ export default {
       sessionId.value = data.sessionId
       aiAnalysis.value = data.aiAnalysis
       currentStep.value = 'result'
+      syncLocationWithSession(data.sessionId)
     }
 
     // 站立照识别完成后，进入前屈步骤（不上传）
@@ -153,44 +192,47 @@ export default {
         standingMetrics.value = data.metrics
         metrics.value = data.metrics
       }
+      forwardBendSubmitError.value = ''
       currentStep.value = 'forward_bend'
     }
 
-    const handleForwardBendComplete = async (data) => {
-      forwardBendMetrics.value = data.metrics
-      const { uploadLandmarks } = await import('./services/api.js')
+    const submitStandingAnalysis = async (forwardBendData = null) => {
+      if (!standingLandmarks.value) {
+        currentStep.value = 'capture'
+        return
+      }
+
+      isSubmittingForwardBend.value = true
+      forwardBendSubmitError.value = ''
+
       try {
         const response = await uploadLandmarks(
           standingLandmarks.value,
           standingMetrics.value,
           null,
-          data.landmarks,
-          data.metrics,
+          forwardBendData?.landmarks || null,
+          forwardBendData?.metrics || null,
         )
         sessionId.value = response.sessionId
         aiAnalysis.value = response.aiAnalysis
         currentStep.value = 'result'
+        syncLocationWithSession(response.sessionId)
       } catch (err) {
         console.error('上传失败:', err)
+        forwardBendSubmitError.value = err?.response?.data?.detail || err?.message || '提交失败，请稍后重试'
+      } finally {
+        isSubmittingForwardBend.value = false
       }
     }
 
-    const handleSkipForwardBend = () => {
-      // 跳过前屈，直接上传站立照数据
-      if (!standingLandmarks.value) {
-        currentStep.value = 'capture'
-        return
-      }
-      import('./services/api.js').then(({ uploadLandmarks }) => {
-        uploadLandmarks(standingLandmarks.value, standingMetrics.value).then((response) => {
-          sessionId.value = response.sessionId
-          aiAnalysis.value = response.aiAnalysis
-          currentStep.value = 'result'
-        }).catch((err) => {
-          console.error('上传失败:', err)
-          currentStep.value = 'capture'
-        })
-      })
+    const handleForwardBendComplete = async (data) => {
+      forwardBendMetrics.value = data.metrics
+      await submitStandingAnalysis(data)
+    }
+
+    const handleSkipForwardBend = async () => {
+      forwardBendMetrics.value = null
+      await submitStandingAnalysis()
     }
 
     const handleRestart = () => {
@@ -201,6 +243,9 @@ export default {
       forwardBendMetrics.value = null
       standingLandmarks.value = null
       standingMetrics.value = null
+      isSubmittingForwardBend.value = false
+      forwardBendSubmitError.value = ''
+      syncLocationWithSession(null)
     }
 
     return {
@@ -209,6 +254,8 @@ export default {
       metrics,
       aiAnalysis,
       forwardBendMetrics,
+      isSubmittingForwardBend,
+      forwardBendSubmitError,
       handleLandmarksDetected,
       handleUploadComplete,
       handleStandingComplete,
@@ -260,5 +307,35 @@ function restoreResultState() {
 function clearResultState() {
   if (typeof window === 'undefined') return
   window.localStorage.removeItem(RESULT_STATE_KEY)
+}
+
+function getReportPath(sessionId) {
+  return `${REPORT_ROUTE_PREFIX}/${encodeURIComponent(sessionId)}/`
+}
+
+function getSessionIdFromPath(pathname = typeof window !== 'undefined' ? window.location.pathname : '/') {
+  const match = pathname.match(/^\/report\/([^/]+)\/?$/)
+  if (!match) return null
+
+  try {
+    return decodeURIComponent(match[1])
+  } catch {
+    return match[1]
+  }
+}
+
+function syncLocationWithSession(sessionId, { replace = false } = {}) {
+  if (typeof window === 'undefined') return
+
+  const targetPath = sessionId ? getReportPath(sessionId) : '/'
+  const currentPath = window.location.pathname
+  if (currentPath === targetPath) {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    return
+  }
+
+  const method = replace ? 'replaceState' : 'pushState'
+  window.history[method]({}, '', targetPath)
+  window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
 }
 </script>
