@@ -71,15 +71,112 @@
       </div>
     </main>
 
+    <div
+      v-if="hasDisclaimerDeclined"
+      class="fixed inset-0 z-[70] flex items-end justify-center bg-slate-950/35 px-3 py-3 backdrop-blur-sm sm:items-center sm:px-4 sm:py-6"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="flex max-h-[calc(100dvh-0.75rem)] w-full max-w-xl flex-col overflow-hidden rounded-[24px] border border-white/80 bg-white/95 shadow-[0_32px_90px_rgba(15,23,42,0.24)] sm:max-h-[calc(100dvh-3rem)] sm:rounded-[28px]">
+        <div class="flex-1 overflow-y-auto p-5 sm:p-8">
+          <div class="flex flex-col items-start gap-3 sm:flex-row sm:gap-4">
+            <div class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+              <ShieldCheck class="h-6 w-6" />
+            </div>
+
+            <div class="min-w-0 flex-1">
+              <p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">当前不可使用</p>
+              <h2 class="mt-2 text-lg font-semibold tracking-tight text-slate-950 sm:text-xl">
+                您暂未同意免责声明
+              </h2>
+              <p class="mt-3 text-sm leading-7 text-slate-600 sm:text-base">
+                为保障知情确认，在您同意免责声明前，当前无法继续使用儿童脊柱筛查工具。
+              </p>
+              <p class="mt-2 text-sm leading-7 text-slate-600 sm:text-base">
+                如需继续使用，可重新查看免责声明并确认后进入主页。
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="border-t border-slate-200/80 bg-white/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:px-8 sm:pb-6">
+          <div class="flex flex-col gap-3 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              class="inline-flex w-full items-center justify-center rounded-2xl bg-brand-navy px-4 py-3.5 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(30,58,138,0.24)] transition hover:bg-brand-navy/90 focus-visible:ring-2 focus-visible:ring-brand-navy/30 focus-visible:ring-offset-2 sm:w-auto sm:min-w-[168px]"
+              @click="handleReopenDisclaimer"
+            >
+              重新查看免责声明
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <footer class="hidden border-t border-white/70 bg-white/70 backdrop-blur-xl sm:block">
       <div class="mx-auto flex max-w-[1440px] flex-col gap-4 px-4 py-6 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
         <p class="flex items-start gap-2 text-sm text-slate-600">
           <AlertCircle class="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
-          本工具仅供初步筛查参考，不能替代专业医疗诊断；如发现异常，请尽快前往正规医院脊柱外科就诊。
+          本工具结果仅供参考，不构成诊断证明或医疗方案；最终诊断结果和治疗方案请以正规医师意见为准。
         </p>
         <p class="text-sm text-slate-500">适配手机与桌面端，建议在自然光环境下拍摄孩子站立背部照片。</p>
       </div>
     </footer>
+
+    <div
+      v-if="isDisclaimerVisible"
+      class="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/45 px-3 py-3 backdrop-blur-sm sm:items-center sm:px-4 sm:py-6"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="disclaimer-title"
+    >
+      <div class="flex max-h-[calc(100dvh-0.75rem)] w-full max-w-2xl flex-col overflow-hidden rounded-[24px] border border-white/80 bg-white/95 shadow-[0_32px_90px_rgba(15,23,42,0.28)] sm:max-h-[calc(100dvh-3rem)] sm:rounded-[28px]">
+        <div class="flex-1 overflow-y-auto p-5 sm:p-8">
+          <div class="flex flex-col items-start gap-3 sm:flex-row sm:gap-4">
+            <div class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 shadow-inner shadow-amber-100">
+              <AlertCircle class="h-6 w-6" />
+            </div>
+
+            <div class="min-w-0 flex-1">
+              <p class="text-xs font-semibold uppercase tracking-[0.22em] text-amber-700">使用前确认</p>
+              <h2 id="disclaimer-title" class="mt-2 text-lg font-semibold tracking-tight text-slate-950 sm:text-xl">
+                免责声明
+              </h2>
+              <div class="mt-4 space-y-4 pr-1 text-sm leading-7 text-slate-600 sm:text-base">
+                <p>
+                  本工具作为儿童脊柱侧弯早期筛查的辅助工具，以人工智能为帮手，以手机拍摄这种快速便捷的方式供您参考，但受限于当前 AI 技术和拍摄影像质量、光线、角度等各种因素，本工具输出的结果和建议不构成诊断证明和医疗方案。
+                </p>
+                <p>
+                  结果仅为意见参考，亦不可作为诊断依据，最终诊断结果和相应治疗方案需由正规医师出具，诊断依据应由专业设备确定和提供。
+                </p>
+                <div>
+                  <p class="font-semibold text-slate-800">二、风险及知情确认</p>
+                  <p>①使用本工具拍摄期间，使用者应确保自身和被拍摄对象在安全的环境和状态下进行，注意隐私保护。</p>
+                  <p>②本工具所拍摄影像，存在本机，工具仅提取照片特征点与线上大模型交互进行分析和判断，不会上传影像本身，因此不会造成被拍摄者的隐私暴露。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="border-t border-slate-200/80 bg-white/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:px-8 sm:pb-6">
+          <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                class="inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 sm:w-auto sm:min-w-[132px]"
+                @click="handleDisclaimerDecline"
+              >
+                不同意
+              </button>
+              <button
+                type="button"
+                class="inline-flex w-full items-center justify-center rounded-2xl bg-brand-navy px-4 py-3.5 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(30,58,138,0.24)] transition hover:bg-brand-navy/90 focus-visible:ring-2 focus-visible:ring-brand-navy/30 focus-visible:ring-offset-2 sm:w-auto sm:min-w-[132px]"
+                @click="handleDisclaimerConfirm"
+              >
+                同意并进入
+              </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -116,6 +213,8 @@ export default {
     const standingMetrics = ref(null)
     const isSubmittingForwardBend = ref(false)
     const forwardBendSubmitError = ref('')
+    const isDisclaimerVisible = ref(true)
+    const hasDisclaimerDeclined = ref(false)
 
     const applyLocationState = ({ allowRestore = false } = {}) => {
       const routedSessionId = getSessionIdFromPath()
@@ -157,7 +256,12 @@ export default {
 
     onUnmounted(() => {
       window.removeEventListener('popstate', handlePopState)
+      toggleBodyScrollLock(false)
     })
+
+    watch(isDisclaimerVisible, (visible) => {
+      toggleBodyScrollLock(visible)
+    }, { immediate: true })
 
     watch([currentStep, sessionId, metrics, aiAnalysis], () => {
       if (currentStep.value !== 'result' || !sessionId.value) {
@@ -248,6 +352,21 @@ export default {
       syncLocationWithSession(null)
     }
 
+    const handleDisclaimerConfirm = () => {
+      hasDisclaimerDeclined.value = false
+      isDisclaimerVisible.value = false
+    }
+
+    const handleDisclaimerDecline = () => {
+      isDisclaimerVisible.value = false
+      hasDisclaimerDeclined.value = true
+    }
+
+    const handleReopenDisclaimer = () => {
+      hasDisclaimerDeclined.value = false
+      isDisclaimerVisible.value = true
+    }
+
     return {
       currentStep,
       sessionId,
@@ -256,11 +375,16 @@ export default {
       forwardBendMetrics,
       isSubmittingForwardBend,
       forwardBendSubmitError,
+      isDisclaimerVisible,
+      hasDisclaimerDeclined,
       handleLandmarksDetected,
       handleUploadComplete,
       handleStandingComplete,
       handleForwardBendComplete,
       handleSkipForwardBend,
+      handleDisclaimerConfirm,
+      handleDisclaimerDecline,
+      handleReopenDisclaimer,
       handleRestart,
     }  }
 }
@@ -337,5 +461,10 @@ function syncLocationWithSession(sessionId, { replace = false } = {}) {
   const method = replace ? 'replaceState' : 'pushState'
   window.history[method]({}, '', targetPath)
   window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+}
+
+function toggleBodyScrollLock(locked) {
+  if (typeof document === 'undefined') return
+  document.body.style.overflow = locked ? 'hidden' : ''
 }
 </script>
