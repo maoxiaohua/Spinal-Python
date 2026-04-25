@@ -87,14 +87,18 @@
             <div class="min-w-0 flex-1">
               <p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">当前不可使用</p>
               <h2 class="mt-2 text-lg font-semibold tracking-tight text-slate-950 sm:text-xl">
-                您暂未同意免责声明
+                您尚未完成知情同意确认
               </h2>
               <p class="mt-3 text-sm leading-7 text-slate-600 sm:text-base">
-                为保障知情确认，在您同意免责声明前，当前无法继续使用儿童脊柱筛查工具。
+                根据本工具的使用规范，在您完成免责声明与知情同意确认前，当前无法继续使用儿童脊柱侧弯筛查功能。
               </p>
               <p class="mt-2 text-sm leading-7 text-slate-600 sm:text-base">
-                如需继续使用，可重新查看免责声明并确认后进入主页。
+                如您希望继续使用，请重新查看免责声明全文，并在充分理解相关提示信息后进行确认。
               </p>
+              <div class="mt-4 rounded-2xl border border-slate-200 bg-slate-50/90 p-4 text-sm leading-7 text-slate-600">
+                <p class="font-semibold text-slate-800">如您不同意上述免责声明及相关提示内容，请停止继续使用本工具。</p>
+                <p class="mt-1">您可直接关闭当前浏览器标签页、退出浏览器，或返回上一层系统页面。</p>
+              </div>
             </div>
           </div>
         </div>
