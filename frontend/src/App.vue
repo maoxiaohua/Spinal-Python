@@ -66,6 +66,7 @@
           :metrics="metrics"
           :ai-analysis="aiAnalysis"
           :forward-bend-metrics="forwardBendMetrics"
+          :analysis-mode="analysisMode"
           @restart="handleRestart"
         />
       </div>
@@ -215,6 +216,7 @@ export default {
     const forwardBendMetrics = ref(null)
     const standingLandmarks = ref(null)
     const standingMetrics = ref(null)
+    const analysisMode = ref('basic')
     const isSubmittingForwardBend = ref(false)
     const forwardBendSubmitError = ref('')
     const isDisclaimerVisible = ref(true)
@@ -233,6 +235,7 @@ export default {
         if (restored?.sessionId === routedSessionId) {
           metrics.value = restored.metrics || null
           aiAnalysis.value = restored.aiAnalysis || null
+          analysisMode.value = restored.analysisMode || 'basic'
         } else {
           metrics.value = null
           aiAnalysis.value = null
@@ -247,6 +250,7 @@ export default {
       forwardBendMetrics.value = null
       standingLandmarks.value = null
       standingMetrics.value = null
+      analysisMode.value = 'basic'
     }
 
     const handlePopState = () => {
@@ -267,7 +271,7 @@ export default {
       toggleBodyScrollLock(visible)
     }, { immediate: true })
 
-    watch([currentStep, sessionId, metrics, aiAnalysis], () => {
+    watch([currentStep, sessionId, metrics, aiAnalysis, analysisMode], () => {
       if (currentStep.value !== 'result' || !sessionId.value) {
         clearResultState()
         return
@@ -277,6 +281,7 @@ export default {
         sessionId: sessionId.value,
         metrics: metrics.value,
         aiAnalysis: aiAnalysis.value,
+        analysisMode: analysisMode.value,
       })
     }, { deep: true })
 
@@ -320,6 +325,7 @@ export default {
           null,
           forwardBendData?.landmarks || null,
           forwardBendData?.metrics || null,
+          analysisMode.value,
         )
         sessionId.value = response.sessionId
         aiAnalysis.value = response.aiAnalysis
@@ -335,11 +341,13 @@ export default {
 
     const handleForwardBendComplete = async (data) => {
       forwardBendMetrics.value = data.metrics
+      analysisMode.value = data.analysisMode || 'basic'
       await submitStandingAnalysis(data)
     }
 
     const handleSkipForwardBend = async () => {
       forwardBendMetrics.value = null
+      analysisMode.value = 'basic'
       await submitStandingAnalysis()
     }
 
@@ -351,6 +359,7 @@ export default {
       forwardBendMetrics.value = null
       standingLandmarks.value = null
       standingMetrics.value = null
+      analysisMode.value = 'basic'
       isSubmittingForwardBend.value = false
       forwardBendSubmitError.value = ''
       syncLocationWithSession(null)
@@ -377,6 +386,7 @@ export default {
       metrics,
       aiAnalysis,
       forwardBendMetrics,
+      analysisMode,
       isSubmittingForwardBend,
       forwardBendSubmitError,
       isDisclaimerVisible,
@@ -424,6 +434,7 @@ function restoreResultState() {
       sessionId: parsed.sessionId,
       metrics: parsed.metrics || null,
       aiAnalysis: parsed.aiAnalysis || null,
+      analysisMode: parsed.analysisMode || 'basic',
     }
   } catch (error) {
     console.warn('恢复报告状态失败:', error)

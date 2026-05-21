@@ -48,6 +48,12 @@
               <span class="rounded-full border border-slate-200 bg-white/90 px-4 py-2 text-sm font-medium text-slate-600">
                 会话编号：{{ sessionId }}
               </span>
+              <span
+                v-if="reportAnalysisMode === 'precision'"
+                class="rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700"
+              >
+                精准分析
+              </span>
               <span class="rounded-full px-4 py-2 text-sm font-semibold" :class="severityBadgeClass">
                 {{ getSeverityText(reportMetrics?.severity) }}
               </span>
@@ -274,6 +280,11 @@
           </div>
         </section>
       </div>
+
+      <RecommendationsSection
+        v-if="reportMetrics?.severity && reportMetrics.severity !== 'normal' && reportMetrics.severity !== 'balanced'"
+        :severity="reportMetrics.severity"
+      />
     </div>
   </div>
 </template>
@@ -284,6 +295,7 @@ import { Loader2, AlertCircle, Download, RefreshCw, ArrowLeft } from 'lucide-vue
 import { getAnalysis } from '../services/api.js'
 import SpineVisualizer from './SpineVisualizer.vue'
 import MetricCard from './MetricCard.vue'
+import RecommendationsSection from './RecommendationsSection.vue'
 import { downloadReport } from '../utils/downloadReport.js'
 
 function parseAnalysisText(text) {
@@ -383,6 +395,7 @@ export default {
   components: {
     SpineVisualizer,
     MetricCard,
+    RecommendationsSection,
     Loader2,
     AlertCircle,
     Download,
@@ -406,6 +419,10 @@ export default {
       type: Object,
       default: null,
     },
+    analysisMode: {
+      type: String,
+      default: 'basic',
+    },
   },
   emits: ['restart'],
   setup(props, { emit }) {
@@ -414,6 +431,7 @@ export default {
     const reportMetrics = ref(props.metrics)
     const reportAiAnalysis = ref(props.aiAnalysis)
     const reportForwardBendMetrics = ref(props.forwardBendMetrics)
+    const reportAnalysisMode = ref(props.analysisMode)
 
     onMounted(async () => {
       if (props.sessionId) await fetchReport()
@@ -429,6 +447,10 @@ export default {
 
     watch(() => props.forwardBendMetrics, (value) => {
       reportForwardBendMetrics.value = value
+    })
+
+    watch(() => props.analysisMode, (value) => {
+      reportAnalysisMode.value = value
     })
 
     const severityBadgeClass = computed(() => {
@@ -497,6 +519,7 @@ export default {
         reportMetrics.value = data.metrics || null
         reportAiAnalysis.value = data.aiAnalysis || null
         reportForwardBendMetrics.value = data.forwardBendMetrics || null
+        reportAnalysisMode.value = data.analysisType || props.analysisMode || 'basic'
       } catch (err) {
         console.error('获取报告失败:', err)
         error.value = '获取报告失败: ' + (err.response?.data?.detail || err.message)
@@ -550,6 +573,7 @@ export default {
       reportMetrics,
       reportAiAnalysis,
       reportForwardBendMetrics,
+      reportAnalysisMode,
       severityBadgeClass,
       severityPanelClass,
       followUpTitle,

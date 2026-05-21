@@ -93,7 +93,7 @@ bash start-frontend.sh
 ```env
 AI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 AI_API_KEY=your-api-key
-AI_MODEL=qwen-plus
+AI_MODEL=qwen3.5-omni-plus-2026-03-15
 ```
 
 默认数据库为本地 SQLite：

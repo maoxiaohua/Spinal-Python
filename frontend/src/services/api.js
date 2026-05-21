@@ -43,9 +43,10 @@ export async function uploadLandmarks(
   metrics,
   sessionId = null,
   forwardBendLandmarks = null,
-  forwardBendMetrics = null
+  forwardBendMetrics = null,
+  analysisType = 'basic'
 ) {
-  const payload = { landmarks, metrics, sessionId }
+  const payload = { landmarks, metrics, sessionId, analysisType }
   if (forwardBendLandmarks) payload.forwardBendLandmarks = forwardBendLandmarks
   if (forwardBendMetrics) payload.forwardBendMetrics = forwardBendMetrics
 
@@ -58,6 +59,22 @@ export async function uploadLandmarks(
  */
 export async function getAnalysis(sessionId) {
   const response = await apiClient.get(`/screening/analysis/${sessionId}`)
+  return response.data
+}
+
+/**
+ * 获取推荐训练视频
+ */
+export async function getExercises(severity) {
+  const response = await apiClient.get('/exercises', { params: { severity } })
+  return response.data
+}
+
+/**
+ * 获取附近医院推荐
+ */
+export async function getHospitalsNearby(city) {
+  const response = await apiClient.get('/hospitals/nearby', { params: { city } })
   return response.data
 }
 

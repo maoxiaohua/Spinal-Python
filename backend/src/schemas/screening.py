@@ -40,6 +40,7 @@ class LandmarksUploadRequest(BaseModel):
     sessionId: Optional[str] = Field(None, description="会话ID")
     forwardBendLandmarks: Optional[List[Landmark]] = Field(None, description="前屈照片关键点")
     forwardBendMetrics: Optional[ForwardBendMetrics] = Field(None, description="前屈测试指标")
+    analysisType: Optional[str] = Field(None, description="分析模式: basic/precision")
 
 
 class AIAnalysisResponse(BaseModel):
@@ -56,6 +57,7 @@ class LandmarksUploadResponse(BaseModel):
     sessionId: str = Field(..., description="会话ID")
     message: str = Field(..., description="消息")
     aiAnalysis: Optional[AIAnalysisResponse] = Field(None, description="AI 分析结果")
+    analysisType: Optional[str] = Field(None, description="分析模式: basic/precision")
 
 
 class ScreeningSessionResponse(BaseModel):
@@ -65,6 +67,7 @@ class ScreeningSessionResponse(BaseModel):
     metrics: Optional[SpinePoseMetrics] = None
     forwardBendMetrics: Optional[ForwardBendMetrics] = None
     aiAnalysis: Optional[AIAnalysisResponse] = None
+    analysisType: Optional[str] = None
     createdAt: datetime
 
     class Config:

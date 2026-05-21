@@ -22,8 +22,15 @@
       <div class="p-4 sm:p-7">
         <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="handleFileSelect" />
 
+        <PrecisionPaymentPrompt
+          v-if="!imagePreview && !hasAcceptedPrecision"
+          :busy="busy"
+          @accept="hasAcceptedPrecision = true"
+          @skip="handleSkip"
+        />
+
         <div
-          v-if="!imagePreview"
+          v-if="!imagePreview && hasAcceptedPrecision"
           class="rounded-[28px] border border-dashed border-slate-300 bg-[linear-gradient(180deg,rgba(248,250,252,0.9),rgba(240,249,255,0.75))] p-6 sm:p-8"
         >
           <div class="mx-auto max-w-2xl text-center">
@@ -52,14 +59,6 @@
                 <Camera class="h-5 w-5" />
                 拍摄或上传前屈照片
               </button>
-              <button
-                type="button"
-                :disabled="busy"
-                @click="handleSkip"
-                class="inline-flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-4 text-base font-semibold text-slate-700 transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {{ busy ? '正在生成站立照报告...' : '跳过，仅用站立照分析' }}
-              </button>
             </div>
 
             <div v-if="submitError" class="mt-4 rounded-[24px] border border-rose-200 bg-rose-50 p-4 text-left">
@@ -69,7 +68,7 @@
           </div>
         </div>
 
-        <div v-else class="space-y-4">
+        <div v-if="imagePreview" class="space-y-4">
           <div class="overflow-hidden rounded-[28px] border border-slate-200 bg-slate-950/95">
             <div class="relative bg-[radial-gradient(circle_at_top,rgba(45,212,191,0.08),transparent_40%),linear-gradient(180deg,rgba(15,23,42,0.45),rgba(15,23,42,0.8))]">
               <canvas ref="canvasElement" class="block max-h-[720px] w-full"></canvas>
@@ -104,17 +103,15 @@
             </div>
           </div>
 
-          <div class="flex flex-col gap-3 sm:flex-row">
-            <button
-              v-if="status === 'detected'"
-              type="button"
-              :disabled="busy"
-              @click="handleSubmit"
-              class="inline-flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-6 py-4 text-base font-semibold text-white shadow-[0_18px_40px_rgba(15,23,42,0.2)] transition hover:-translate-y-0.5 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Send class="h-5 w-5" />
-              {{ busy ? '提交中...' : '提交并生成综合报告' }}
-            </button>
+          <PrecisionPaymentPrompt
+            v-if="status === 'detected'"
+            :busy="busy"
+            class="mt-4"
+            @accept="handlePrecisionAccept"
+            @skip="handleSkip"
+          />
+
+          <div v-if="status === 'detected'" class="mt-4">
             <button
               type="button"
               :disabled="busy"
@@ -123,14 +120,6 @@
             >
               <RefreshCw class="h-5 w-5" />
               重新拍摄
-            </button>
-            <button
-              type="button"
-              :disabled="busy"
-              @click="handleSkip"
-              class="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-4 text-base font-semibold text-slate-600 transition hover:border-slate-300 sm:min-w-44 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {{ busy ? '处理中...' : '跳过此步骤' }}
             </button>
           </div>
         </div>
@@ -141,12 +130,13 @@
 
 <script>
 import { ref, computed } from 'vue'
-import { Camera, Send, RefreshCw, PersonStanding } from 'lucide-vue-next'
+import { Camera, RefreshCw, PersonStanding } from 'lucide-vue-next'
 import { calculateForwardBendMetrics } from '../utils/measurement.js'
+import PrecisionPaymentPrompt from './PrecisionPaymentPrompt.vue'
 
 export default {
   name: 'ForwardBendCapture',
-  components: { Camera, Send, RefreshCw, PersonStanding },
+  components: { Camera, RefreshCw, PersonStanding, PrecisionPaymentPrompt },
   props: {
     busy: {
       type: Boolean,
@@ -166,6 +156,7 @@ export default {
     const errorMessage = ref('')
     const landmarks = ref(null)
     const ribHumpResult = ref(null)
+    const hasAcceptedPrecision = ref(false)
 
     const hints = [
       { title: '弯腰角度约 90°', description: '背部尽量与地面平行，不需要完全水平，自然弯曲即可。' },
@@ -264,12 +255,22 @@ export default {
       })
     }
 
+    const handlePrecisionAccept = () => {
+      if (!landmarks.value || !ribHumpResult.value) return
+      emit('forward-bend-complete', {
+        landmarks: landmarks.value,
+        metrics: ribHumpResult.value,
+        analysisMode: 'precision',
+      })
+    }
+
     const handleReset = () => {
       imagePreview.value = null
       status.value = 'idle'
       landmarks.value = null
       ribHumpResult.value = null
       errorMessage.value = ''
+      hasAcceptedPrecision.value = false
       if (fileInput.value) fileInput.value.value = ''
     }
 
@@ -280,6 +281,7 @@ export default {
       status,
       errorMessage,
       ribHumpResult,
+      hasAcceptedPrecision,
       hints,
       sideLabel,
       severityLabel,
@@ -288,6 +290,7 @@ export default {
       handleSkip,
       handleFileSelect,
       handleSubmit,
+      handlePrecisionAccept,
       handleReset,
     }
   }

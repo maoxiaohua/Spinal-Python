@@ -57,6 +57,8 @@ async def upload_landmarks(
             metrics_dict["summary"] = SpineMeasurement.SEVERITY_SUMMARY[final_severity]
             metrics = SpinePoseMetrics(**metrics_dict)
 
+        analysis_type = request.analysisType or "basic"
+
         # 创建筛查会话记录
         session = ScreeningSession(
             id=session_id,
@@ -71,6 +73,7 @@ async def upload_landmarks(
             trunk_shift_norm=metrics.trunkShiftNorm,
             head_tilt_deg=metrics.headTiltDeg,
             ankle_compensation_ratio=metrics.ankleCompensationRatio,
+            analysis_type=analysis_type,
             status="processing",
         )
 
@@ -122,6 +125,7 @@ async def upload_landmarks(
             sessionId=session_id,
             message="骨骼坐标已保存并分析完成",
             aiAnalysis=ai_response,
+            analysisType=analysis_type,
         )
 
     except Exception as e:
@@ -185,6 +189,7 @@ async def get_analysis(
             metrics=metrics,
             forwardBendMetrics=forward_bend_metrics,
             aiAnalysis=ai_analysis,
+            analysisType=session.analysis_type,
             createdAt=session.created_at,
         )
 

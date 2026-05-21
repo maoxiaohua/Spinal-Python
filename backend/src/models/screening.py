@@ -35,5 +35,8 @@ class ScreeningSession(BaseModel):
     ai_model = Column(String(50), nullable=True)
     ai_timestamp = Column(DateTime, nullable=True)
 
+    # 分析模式
+    analysis_type = Column(String(20), default="basic")
+
     # 状态
     status = Column(String(20), default="processing")
