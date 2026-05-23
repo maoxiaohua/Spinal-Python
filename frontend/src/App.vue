@@ -148,7 +148,7 @@
               </h2>
               <div class="mt-4 space-y-4 pr-1 text-sm leading-7 text-slate-600 sm:text-base">
                 <p>
-                  本工具作为儿童脊柱侧弯早期筛查的辅助工具，以人工智能为帮手，以手机拍摄这种快速便捷的方式供您参考，但受限于当前 AI 技术和拍摄影像质量、光线、角度等各种因素，本工具输出的结果和建议不构成诊断证明和医疗方案。
+                  本工具作为儿童脊柱侧弯早期筛查的辅助工具，以智能算法为帮手，以手机拍摄这种快速便捷的方式供您参考，但受限于当前技术和拍摄影像质量、光线、角度等各种因素，本工具输出的结果和建议不构成诊断证明和医疗方案。
                 </p>
                 <p>
                   结果仅为意见参考，亦不可作为诊断依据，最终诊断结果和相应治疗方案需由正规医师出具，诊断依据应由专业设备确定和提供。
@@ -156,7 +156,7 @@
                 <div>
                   <p class="font-semibold text-slate-800">二、风险及知情确认</p>
                   <p>①使用本工具拍摄期间，使用者应确保自身和被拍摄对象在安全的环境和状态下进行，注意隐私保护。</p>
-                  <p>②本工具所拍摄影像，存在本机，工具仅提取照片特征点与线上大模型交互进行分析和判断，不会上传影像本身，因此不会造成被拍摄者的隐私暴露。</p>
+                  <p>②本工具所拍摄影像，存在本机，工具仅提取照片特征点与线上服务交互进行分析和判断，不会上传影像本身，因此不会造成被拍摄者的隐私暴露。</p>
                 </div>
               </div>
             </div>
@@ -333,7 +333,11 @@ export default {
         syncLocationWithSession(response.sessionId)
       } catch (err) {
         console.error('上传失败:', err)
-        forwardBendSubmitError.value = err?.response?.data?.detail || err?.message || '提交失败，请稍后重试'
+        const detail = err?.response?.data?.detail
+        if (Array.isArray(detail)) {
+          console.error('验证错误详情:', JSON.stringify(detail, null, 2))
+        }
+        forwardBendSubmitError.value = typeof detail === 'string' ? detail : (err?.message || '提交失败，请稍后重试')
       } finally {
         isSubmittingForwardBend.value = false
       }

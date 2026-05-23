@@ -170,7 +170,7 @@ function generateReportSVG(data) {
         stroke: '#dbe4f0',
         rx: 30,
       }),
-      textBlock(PAGE_PADDING + 34, y + 44, ['AI 专业分析'], {
+      textBlock(PAGE_PADDING + 34, y + 44, ['专业分析'], {
         fontSize: 28,
         fontWeight: 700,
         fill: '#0f172a',
@@ -181,7 +181,7 @@ function generateReportSVG(data) {
         fill: '#334155',
       }),
       textBlock(PAGE_PADDING + 34, y + analysisHeight - 28, [
-        `模型：${aiAnalysis.model || '未记录'}    生成时间：${formatDateTime(aiAnalysis.timestamp || Date.now())}`,
+        `生成时间：${formatDateTime(aiAnalysis.timestamp || Date.now())}`,
       ], {
         fontSize: 18,
         fill: '#94a3b8',
@@ -265,7 +265,7 @@ function buildAnalysisLines(aiAnalysis) {
     if (index < paragraphs.length - 1) lines.push('')
   })
 
-  return lines.length ? lines : ['暂无 AI 分析内容']
+  return lines.length ? lines : ['暂无分析内容']
 }
 
 function wrapText(text, maxWidth, font) {

@@ -46,7 +46,8 @@ export async function uploadLandmarks(
   forwardBendMetrics = null,
   analysisType = 'basic'
 ) {
-  const payload = { landmarks, metrics, sessionId, analysisType }
+  const payload = { landmarks, metrics, analysisType }
+  if (sessionId) payload.sessionId = sessionId
   if (forwardBendLandmarks) payload.forwardBendLandmarks = forwardBendLandmarks
   if (forwardBendMetrics) payload.forwardBendMetrics = forwardBendMetrics
 

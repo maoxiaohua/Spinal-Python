@@ -6,8 +6,8 @@ from pydantic import BaseModel, Field
 
 class Landmark(BaseModel):
     """骨骼关键点"""
-    x: float = Field(..., ge=0, le=1, description="归一化 X 坐标")
-    y: float = Field(..., ge=0, le=1, description="归一化 Y 坐标")
+    x: float = Field(..., ge=-0.5, le=1.5, description="归一化 X 坐标")
+    y: float = Field(..., ge=-0.5, le=1.5, description="归一化 Y 坐标")
     z: Optional[float] = Field(None, description="深度信息")
     visibility: Optional[float] = Field(None, ge=0, le=1, description="可见性置信度")
 
@@ -44,10 +44,10 @@ class LandmarksUploadRequest(BaseModel):
 
 
 class AIAnalysisResponse(BaseModel):
-    """AI 分析响应"""
+    """分析响应"""
     status: str = Field(..., description="状态: processing/completed/failed")
-    analysis: Optional[str] = Field(None, description="AI 分析文本")
-    model: Optional[str] = Field(None, description="使用的 AI 模型")
+    analysis: Optional[str] = Field(None, description="分析文本")
+    model: Optional[str] = Field(None, description="使用的分析模型")
     timestamp: Optional[datetime] = Field(None, description="分析时间戳")
 
 
@@ -56,7 +56,7 @@ class LandmarksUploadResponse(BaseModel):
     success: bool = Field(..., description="是否成功")
     sessionId: str = Field(..., description="会话ID")
     message: str = Field(..., description="消息")
-    aiAnalysis: Optional[AIAnalysisResponse] = Field(None, description="AI 分析结果")
+    aiAnalysis: Optional[AIAnalysisResponse] = Field(None, description="分析结果")
     analysisType: Optional[str] = Field(None, description="分析模式: basic/precision")
 
 

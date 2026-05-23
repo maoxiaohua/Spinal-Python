@@ -24,11 +24,9 @@ if [ ! -f ".env" ]; then
     exit 1
 fi
 
-if [ ! -d "$FRONTEND_DIST_DIR" ]; then
-    echo "❌ 未找到 frontend/dist，请先执行 bash scripts/build-frontend.sh"
-    exit 1
-fi
-
 mkdir -p "$BACKEND_DIR/logs"
+
+echo "🏗️ 构建前端..."
+bash "$PROJECT_DIR/scripts/build-frontend.sh"
 
 exec "$BACKEND_DIR/venv/bin/python" -m uvicorn src.main:app --host 0.0.0.0 --port 8101

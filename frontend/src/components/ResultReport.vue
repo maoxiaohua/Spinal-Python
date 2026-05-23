@@ -63,7 +63,7 @@
               <p class="text-xs font-semibold uppercase tracking-[0.24em] text-brand-navy/70">Result Overview</p>
               <h2 class="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-4xl md:text-5xl">筛查结果已经生成</h2>
               <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base sm:leading-7 md:text-lg">
-                先看本次拍摄得到的核心指标，再阅读 AI 分析和建议。若结果提示异常，请把线上结果视为家庭初筛信号，而不是最终诊断。
+                先看本次拍摄得到的核心指标，再阅读专业分析和建议。若结果提示异常，请把线上结果视为家庭初筛信号，而不是最终诊断。
               </p>
             </div>
 
@@ -162,11 +162,11 @@
         >
           <div class="flex items-center justify-between gap-3 border-b border-slate-200/70 px-6 py-5">
             <div>
-              <p class="text-xs font-semibold uppercase tracking-[0.24em] text-brand-navy/70">AI Analysis</p>
-              <h3 class="mt-1 text-xl font-semibold text-slate-950">AI 专业分析</h3>
+              <p class="text-xs font-semibold uppercase tracking-[0.24em] text-brand-navy/70">Analysis</p>
+              <h3 class="mt-1 text-xl font-semibold text-slate-950">专业分析</h3>
             </div>
             <span class="rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700">
-              AI
+              智能分析
             </span>
           </div>
           <div class="p-6">
@@ -193,7 +193,7 @@
                       <div class="flex flex-wrap items-center gap-2">
                         <h4 class="text-lg font-semibold text-slate-950">{{ section.title }}</h4>
                         <span class="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-500">
-                          AI 生成要点
+                          分析要点
                         </span>
                       </div>
 
@@ -233,7 +233,6 @@
               </div>
 
               <div class="flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-slate-200 bg-slate-50/80 px-4 py-3 text-xs text-slate-500">
-                <span>模型: {{ reportAiAnalysis.model || '未记录' }}</span>
                 <span>生成时间: {{ formatTime(reportAiAnalysis.timestamp) }}</span>
               </div>
             </div>
@@ -257,7 +256,7 @@
 
           <div class="rounded-[32px] border border-slate-200 bg-slate-950 p-5 text-white shadow-[0_24px_60px_rgba(15,23,42,0.16)] sm:p-6">
             <p class="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200/80">Action</p>
-            <h4 class="mt-2 text-2xl font-semibold">继续处理这次筛查</h4>
+            <h4 class="mt-2 text-2xl font-semibold">继续进行筛查和下载本次报告</h4>
             <p class="mt-3 text-sm leading-7 text-slate-300">
               你可以先下载报告留档，再根据结果决定是否重新拍摄复测或线下就诊。
             </p>
@@ -267,7 +266,7 @@
                 class="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-6 py-4 text-base font-semibold text-white transition hover:bg-white/10"
               >
                 <RefreshCw class="h-5 w-5" />
-                重新上传照片分析
+                返回继续上传照片进行分析
               </button>
               <button
                 @click="handleDownload"

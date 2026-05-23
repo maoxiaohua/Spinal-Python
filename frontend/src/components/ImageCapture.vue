@@ -43,7 +43,7 @@
               </div>
               <div class="rounded-2xl border border-white/90 bg-white/72 p-4 backdrop-blur">
                 <p class="text-sm font-medium text-slate-500">结果输出</p>
-                <p class="mt-2 text-lg font-semibold text-slate-900">指标 + AI 解读建议</p>
+                <p class="mt-2 text-lg font-semibold text-slate-900">指标 + 解读建议</p>
               </div>
             </div>
 
@@ -408,7 +408,7 @@
           <div v-if="debugSummary" class="mt-5 space-y-4">
             <div class="grid gap-3 sm:grid-cols-3">
               <div class="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-                <p class="text-sm text-slate-500">模型置信度</p>
+                <p class="text-sm text-slate-500">识别置信度</p>
                 <p class="mt-2 text-2xl font-semibold tracking-tight text-slate-950">{{ debugSummary.poseScore }}</p>
                 <p class="mt-1 text-xs leading-5 text-slate-500">来自 MoveNet 单人姿态整体评分</p>
               </div>
@@ -582,7 +582,7 @@
           </div>
           <div v-else class="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 px-4 py-4">
             <p class="text-sm font-semibold text-slate-900">调试数据会在识别后显示</p>
-            <p class="mt-2 text-xs leading-5 text-slate-600">主要用于快速确认模型是否抓到了合理的肩和髋代理点。</p>
+            <p class="mt-2 text-xs leading-5 text-slate-600">主要用于快速确认是否抓到了合理的肩和髋代理点。</p>
           </div>
         </div>
       </details>
@@ -752,9 +752,9 @@ export default {
         try {
           const poseService = await loadPoseDetectionService()
           await poseService.initPoseDetector()
-          console.log('姿态检测模型已预加载')
+          console.log('姿态检测器已预加载')
         } catch (err) {
-          console.error('模型预加载失败:', err)
+          console.error('检测器预加载失败:', err)
         }
       })
     })
@@ -803,7 +803,7 @@ export default {
         ),
         buildStepState(
           '提交并生成报告',
-          '确认关键点稳定后再提交，进入结果页查看指标、AI 解读和下载报告。',
+          '确认关键点稳定后再提交，进入结果页查看指标、解读和下载报告。',
           thirdActive ? 'active' : status.value === 'detected' ? 'active' : secondDone ? 'upcoming' : 'upcoming',
           thirdActive ? '处理中' : status.value === 'detected' ? '可执行' : '待开始'
         ),
@@ -882,7 +882,7 @@ export default {
           actions: [
             {
               title: '即将进入结果页',
-              description: '结果页会提供指标卡片、AI 分析说明和下载报告功能。',
+              description: '结果页会提供指标卡片、分析说明和下载报告功能。',
               icon: Sparkles,
             },
           ],
@@ -1266,19 +1266,23 @@ function scheduleDetectorPreload(task) {
 }
 
 function normalizeDetectionError(err, isWeChatWebView = false) {
-  const message = err?.message || '检测失败，请重试'
+  const rawMessage = err?.message || '检测失败，请重试'
+  console.error('姿态检测原始错误:', rawMessage, err)
 
-  if (/backend|TensorFlow|MoveNet|WebGL|初始化/i.test(message)) {
+  // 在移动端暂时显示原始错误信息，方便定位问题
+  const debugInfo = rawMessage
+
+  if (/backend|TensorFlow|MoveNet|WebGL|初始化/i.test(rawMessage)) {
     return isWeChatWebView
       ? '微信内置浏览器已切换为延迟加载模式，但当前设备仍未完成骨骼识别初始化，请稍后重试。'
-      : '骨骼识别模块初始化失败，请重新选择照片后再试。'
+      : '初始化失败: ' + debugInfo
   }
 
-  if (/Failed to fetch|Load failed|network/i.test(message)) {
-    return '骨骼识别模型加载失败，请检查当前网络后重试。'
+  if (/Failed to fetch/i.test(rawMessage)) {
+    return '下载失败: ' + debugInfo
   }
 
-  return message
+  return debugInfo
 }
 
 function loadImageForDetection(src) {

@@ -29,7 +29,7 @@ async def upload_landmarks(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    上传骨骼坐标并进行 AI 分析
+    上传骨骼坐标并进行分析
     """
     try:
         # 生成或使用现有的 session ID

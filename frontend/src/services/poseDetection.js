@@ -88,18 +88,68 @@ export async function initPoseDetector() {
   detectorPromise = (async () => {
     await ensureTfBackend()
 
-    console.log('正在加载 MoveNet 模型...')
+    console.log('正在加载 MoveNet 检测器...')
 
-    const nextDetector = await poseDetection.createDetector(
-      poseDetection.SupportedModels.MoveNet,
-      {
-        modelType: poseDetection.movenet.modelType.SINGLEPOSE_THUNDER,
-        enableSmoothing: false,
+    const MODEL_URL = '/models/movenet-thunder/model.json'
+    const CACHE_KEY = 'movenet-thunder'
+    const INDEXED_DB_URL = `indexeddb://${CACHE_KEY}`
+
+    // 优先从 IndexedDB 加载缓存，首次访问则下载后缓存
+    let modelUrl = MODEL_URL
+    try {
+      const models = await tf.io.listModels()
+      if (models && models[INDEXED_DB_URL]) {
+        console.log('MoveNet 模型已在 IndexedDB 缓存，本地加载')
+        modelUrl = INDEXED_DB_URL
+      } else {
+        console.log('首次下载 MoveNet 模型 (~12MB)，请耐心等待...')
+        const model = await tf.loadGraphModel(MODEL_URL)
+        console.log('正在缓存模型到 IndexedDB...')
+        await model.save(INDEXED_DB_URL)
+        console.log('模型已缓存到 IndexedDB，下次访问将秒开')
+        modelUrl = INDEXED_DB_URL
       }
-    )
+    } catch (cacheErr) {
+      console.warn('IndexedDB 缓存策略失败，回退网络加载:', cacheErr.message)
+      modelUrl = MODEL_URL
+    }
+
+    let nextDetector = null
+    try {
+      nextDetector = await poseDetection.createDetector(
+        poseDetection.SupportedModels.MoveNet,
+        {
+          modelType: poseDetection.movenet.modelType.SINGLEPOSE_THUNDER,
+          modelUrl: modelUrl,
+          enableSmoothing: false,
+        }
+      )
+    } catch (localErr) {
+      // IndexedDB 缓存损坏时回退到网络加载
+      if (modelUrl === INDEXED_DB_URL) {
+        console.warn('IndexedDB 加载失败，回退网络:', localErr.message)
+        nextDetector = await poseDetection.createDetector(
+          poseDetection.SupportedModels.MoveNet,
+          {
+            modelType: poseDetection.movenet.modelType.SINGLEPOSE_THUNDER,
+            modelUrl: MODEL_URL,
+            enableSmoothing: false,
+          }
+        )
+      } else {
+        console.warn('本地模型加载失败，尝试 CDN:', localErr.message)
+        nextDetector = await poseDetection.createDetector(
+          poseDetection.SupportedModels.MoveNet,
+          {
+            modelType: poseDetection.movenet.modelType.SINGLEPOSE_THUNDER,
+            enableSmoothing: false,
+          }
+        )
+      }
+    }
 
     detector = nextDetector
-    console.log(`MoveNet 模型加载完成，当前 backend: ${tf.getBackend()}`)
+    console.log(`MoveNet 检测器加载完成，当前 backend: ${tf.getBackend()}`)
     return detector
   })().catch((err) => {
     detector = null
@@ -111,8 +161,26 @@ export async function initPoseDetector() {
 }
 
 export async function detectPose(imageElement) {
-  const activeDetector = await initPoseDetector()
-  const poses = await activeDetector.estimatePoses(imageElement)
+  let activeDetector = await initPoseDetector()
+  let poses
+
+  try {
+    poses = await activeDetector.estimatePoses(imageElement)
+  } catch (err) {
+    if (/texture size|greater than.*maximum/i.test(err.message)) {
+      console.warn('WebGL 纹理超限，切换到 CPU backend:', err.message)
+      detector = null
+      detectorPromise = null
+      await tf.setBackend('cpu')
+      await tf.ready()
+      backendPromise = Promise.resolve('cpu')
+      console.log('已切换到 CPU backend')
+      activeDetector = await initPoseDetector()
+      poses = await activeDetector.estimatePoses(imageElement)
+    } else {
+      throw err
+    }
+  }
 
   if (!poses.length || !poses[0].keypoints?.length) {
     return null
@@ -162,8 +230,8 @@ function convertToMediaPipeFormat(keypoints, width, height) {
     if (!kp) return
 
     result[mediaPipeIdx] = {
-      x: kp.x / width,
-      y: kp.y / height,
+      x: Math.min(1, Math.max(0, kp.x / width)),
+      y: Math.min(1, Math.max(0, kp.y / height)),
       z: 0,
       visibility: kp.score ?? 0,
     }

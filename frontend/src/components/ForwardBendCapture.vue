@@ -22,15 +22,8 @@
       <div class="p-4 sm:p-7">
         <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="handleFileSelect" />
 
-        <PrecisionPaymentPrompt
-          v-if="!imagePreview && !hasAcceptedPrecision"
-          :busy="busy"
-          @accept="hasAcceptedPrecision = true"
-          @skip="handleSkip"
-        />
-
         <div
-          v-if="!imagePreview && hasAcceptedPrecision"
+          v-if="!imagePreview"
           class="rounded-[28px] border border-dashed border-slate-300 bg-[linear-gradient(180deg,rgba(248,250,252,0.9),rgba(240,249,255,0.75))] p-6 sm:p-8"
         >
           <div class="mx-auto max-w-2xl text-center">
@@ -156,8 +149,6 @@ export default {
     const errorMessage = ref('')
     const landmarks = ref(null)
     const ribHumpResult = ref(null)
-    const hasAcceptedPrecision = ref(false)
-
     const hints = [
       { title: '弯腰角度约 90°', description: '背部尽量与地面平行，不需要完全水平，自然弯曲即可。' },
       { title: '双肩完整入镜', description: '确保左右肩膀都在画面内，这是检测肋骨隆起的关键。' },
@@ -270,7 +261,6 @@ export default {
       landmarks.value = null
       ribHumpResult.value = null
       errorMessage.value = ''
-      hasAcceptedPrecision.value = false
       if (fileInput.value) fileInput.value.value = ''
     }
 
@@ -281,7 +271,6 @@ export default {
       status,
       errorMessage,
       ribHumpResult,
-      hasAcceptedPrecision,
       hints,
       sideLabel,
       severityLabel,
