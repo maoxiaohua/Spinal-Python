@@ -150,7 +150,7 @@ class SpineMeasurement:
         pelvis_angle: float,
         confidence: float,
         trunk_shift: Optional[float] = None,
-        rib_hump_severity: Optional[str] = None,
+        forward_bend_severity: Optional[str] = None,
     ) -> str:
         """分类严重程度"""
         candidates = [
@@ -159,10 +159,18 @@ class SpineMeasurement:
             cls._classify_tilt_severity(pelvis_angle),
             cls._classify_trunk_shift_severity(trunk_shift),
             cls._classify_confidence_severity(confidence),
-            cls._normalize_rib_hump_severity(rib_hump_severity),
         ]
 
-        return max(candidates, key=lambda item: cls.SEVERITY_ORDER.get(item, -1))
+        base_severity = max(candidates, key=lambda item: cls.SEVERITY_ORDER.get(item, -1))
+
+        # 弯腰位作为保守修饰因子，最多提升一级，不可独立产生严重诊断
+        if forward_bend_severity == "severe" and base_severity == "normal":
+            return "mild"
+        if forward_bend_severity == "severe" and base_severity == "mild":
+            return "moderate"
+        if forward_bend_severity == "moderate" and base_severity == "normal":
+            return "mild"
+        return base_severity
 
     @classmethod
     def _classify_angle_severity(cls, angle: float) -> str:
@@ -202,16 +210,6 @@ class SpineMeasurement:
     @classmethod
     def _classify_confidence_severity(cls, confidence: float) -> str:
         return "mild" if confidence < 0.6 else "normal"
-
-    @classmethod
-    def _normalize_rib_hump_severity(cls, rib_hump_severity: Optional[str]) -> str:
-        severity_map = {
-            "none": "normal",
-            "mild": "mild",
-            "moderate": "moderate",
-            "severe": "severe",
-        }
-        return severity_map.get(rib_hump_severity or "", "normal")
 
     @classmethod
     def calculate_metrics(
@@ -313,37 +311,65 @@ class SpineMeasurement:
 
     @classmethod
     def calculate_forward_bend_metrics(cls, landmarks: List[Landmark]) -> Dict:
-        """计算前屈（Adams）测试指标"""
+        """计算弯腰位躯干对称性评估指标"""
         if len(landmarks) < 33:
             raise ValueError(f"需要33个关键点，但只收到 {len(landmarks)} 个")
 
         l_shoulder = cls.pick_landmark(landmarks, cls.LEFT_SHOULDER)
         r_shoulder = cls.pick_landmark(landmarks, cls.RIGHT_SHOULDER)
+        l_hip = cls.pick_landmark(landmarks, cls.LEFT_HIP)
+        r_hip = cls.pick_landmark(landmarks, cls.RIGHT_HIP)
 
-        if not l_shoulder or not r_shoulder:
-            raise ValueError("无法检测到肩部关键点，请确保背部完整入镜")
+        if not l_shoulder or not r_shoulder or not l_hip or not r_hip:
+            raise ValueError("无法检测到肩部和髋部关键点，请确保背部完整入镜")
 
-        rib_hump_diff_norm = round(r_shoulder.y - l_shoulder.y, 4)
-        abs_rib_hump = abs(rib_hump_diff_norm)
+        # 弯腰位肩部倾斜（有符号，正值=左侧更高）
+        shoulder_tilt_deg = round(math.degrees(
+            math.atan2(r_shoulder.y - l_shoulder.y, r_shoulder.x - l_shoulder.x)
+        ), 2)
 
-        if abs_rib_hump < 0.02:
-            rib_hump_side = "symmetric"
-        elif rib_hump_diff_norm > 0:
-            rib_hump_side = "left"
+        # 弯腰位骨盆倾斜
+        pelvis_tilt_deg = round(math.degrees(
+            math.atan2(r_hip.y - l_hip.y, r_hip.x - l_hip.x)
+        ), 2)
+
+        # 肩-骨盆扭转角
+        torsion_deg = round(abs(shoulder_tilt_deg - pelvis_tilt_deg), 2)
+
+        # 躯干侧移（归一化）
+        shoulder_mid_x = (l_shoulder.x + r_shoulder.x) / 2
+        hip_mid_x = (l_hip.x + r_hip.x) / 2
+        hip_width = abs(l_hip.x - r_hip.x)
+        trunk_shift_norm = round((shoulder_mid_x - hip_mid_x) / hip_width, 4) if hip_width > 0 else None
+
+        # 复合对称评分
+        asymmetry_score = round(
+            abs(shoulder_tilt_deg) * 0.35 +
+            abs(pelvis_tilt_deg) * 0.35 +
+            torsion_deg * 0.30, 2
+        )
+
+        # 主导不对称侧
+        shoulder_side = "left" if shoulder_tilt_deg > 0 else "right"
+        pelvis_side = "left" if pelvis_tilt_deg > 0 else "right"
+        dominant_side = shoulder_side if abs(shoulder_tilt_deg) >= abs(pelvis_tilt_deg) else pelvis_side
+
+        # 严重度
+        if asymmetry_score < 2.0:
+            severity = "none"
+        elif asymmetry_score < 5.0:
+            severity = "mild"
+        elif asymmetry_score < 10.0:
+            severity = "moderate"
         else:
-            rib_hump_side = "right"
-
-        if abs_rib_hump < 0.02:
-            rib_hump_severity = "none"
-        elif abs_rib_hump < 0.05:
-            rib_hump_severity = "mild"
-        elif abs_rib_hump < 0.10:
-            rib_hump_severity = "moderate"
-        else:
-            rib_hump_severity = "severe"
+            severity = "severe"
 
         return {
-            "ribHumpDiffNorm": rib_hump_diff_norm,
-            "ribHumpSide": rib_hump_side,
-            "ribHumpSeverity": rib_hump_severity,
+            "asymmetryScore": asymmetry_score,
+            "shoulderTiltDeg": shoulder_tilt_deg,
+            "pelvisTiltDeg": pelvis_tilt_deg,
+            "torsionDeg": torsion_deg,
+            "trunkShiftNorm": trunk_shift_norm,
+            "dominantSide": dominant_side,
+            "severity": severity,
         }

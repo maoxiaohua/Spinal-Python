@@ -240,6 +240,8 @@ function convertToMediaPipeFormat(keypoints, width, height) {
   return result
 }
 
+const DRAW_REF = 1000
+
 export function drawPose(canvas, keypoints, imageWidth, imageHeight, sourceImage = null, measurementData = null) {
   const ctx = canvas.getContext('2d')
   canvas.width = imageWidth
@@ -247,13 +249,15 @@ export function drawPose(canvas, keypoints, imageWidth, imageHeight, sourceImage
   ctx.clearRect(0, 0, canvas.width, canvas.height)
   ctx.lineCap = 'round'
 
+  const sf = Math.max(imageWidth, imageHeight) / DRAW_REF
+
   if (sourceImage) {
     ctx.drawImage(sourceImage, 0, 0, imageWidth, imageHeight)
   }
 
   // 1. 原始骨骼连线作为弱背景
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'
-  ctx.lineWidth = 1.75
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)'
+  ctx.lineWidth = Math.round(2.5 * sf)
   MOVENET_CONNECTIONS.forEach(([startIndex, endIndex]) => {
     const start = keypoints[startIndex]
     const end = keypoints[endIndex]
@@ -267,7 +271,7 @@ export function drawPose(canvas, keypoints, imageWidth, imageHeight, sourceImage
   })
 
   // 2. 按真实测量项绘制关键参考线
-  drawMeasurementOverlay(ctx, keypoints, imageWidth, imageHeight, measurementData)
+  drawMeasurementOverlay(ctx, keypoints, imageWidth, imageHeight, sf, measurementData)
 
   // 3. 关键点
   const spineIndices = new Set([5, 6, 11, 12, 3, 4, 15, 16])
@@ -277,9 +281,9 @@ export function drawPose(canvas, keypoints, imageWidth, imageHeight, sourceImage
     const isSpineProxy = spineIndices.has(index)
     ctx.fillStyle = isSpineProxy
       ? 'rgba(255, 255, 255, 0.96)'
-      : 'rgba(148, 163, 184, 0.55)'
+      : 'rgba(148, 163, 184, 0.65)'
     ctx.beginPath()
-    ctx.arc(point.x, point.y, isSpineProxy ? 7 : 5, 0, Math.PI * 2)
+    ctx.arc(point.x, point.y, Math.round(isSpineProxy ? 10 * sf : 7 * sf), 0, Math.PI * 2)
     ctx.fill()
   })
 }
@@ -288,7 +292,7 @@ function isUsablePoint(point) {
   return Boolean(point && (point.score ?? 0) >= 0.2)
 }
 
-function drawMeasurementOverlay(ctx, keypoints, imageWidth, imageHeight, measurementData = null) {
+function drawMeasurementOverlay(ctx, keypoints, imageWidth, imageHeight, sf, measurementData = null) {
   const leftShoulder = getUsablePoint(keypoints, MEASUREMENT_INDICES.leftShoulder)
   const rightShoulder = getUsablePoint(keypoints, MEASUREMENT_INDICES.rightShoulder)
   const leftHip = getUsablePoint(keypoints, MEASUREMENT_INDICES.leftHip)
@@ -303,78 +307,84 @@ function drawMeasurementOverlay(ctx, keypoints, imageWidth, imageHeight, measure
   const metrics = resolveOverlayMetrics(measurementData, imageWidth, imageHeight)
   const shoulderMid = midpoint(leftShoulder, rightShoulder)
   const hipMid = midpoint(leftHip, rightHip)
-  const overlayTop = Math.max(24, Math.min(shoulderMid.y, (leftEar?.y ?? shoulderMid.y)) - 48)
-  const overlayBottom = Math.min(imageHeight - 24, Math.max((leftAnkle?.y ?? hipMid.y), (rightAnkle?.y ?? hipMid.y), hipMid.y) + 36)
+  const margin = Math.round(24 * sf)
+  const labelOffset = Math.round(18 * sf)
+  const overlayTop = Math.max(margin, Math.min(shoulderMid.y, (leftEar?.y ?? shoulderMid.y)) - Math.round(48 * sf))
+  const overlayBottom = Math.min(imageHeight - margin, Math.max((leftAnkle?.y ?? hipMid.y), (rightAnkle?.y ?? hipMid.y), hipMid.y) + Math.round(36 * sf))
   const torsoAxisColor = MEASUREMENT_COLORS.trunk
 
   // 躯干垂直参考线
   drawLine(ctx, hipMid.x, overlayTop, hipMid.x, overlayBottom, {
     color: 'rgba(255, 255, 255, 0.78)',
-    width: 3.5,
-    dash: [18, 12],
+    width: Math.round(5 * sf),
+    dash: [Math.round(18 * sf), Math.round(12 * sf)],
   })
 
   // 肩线与其水平参考
-  drawHorizontalReference(ctx, shoulderMid.y, imageWidth, 'rgba(34, 197, 94, 0.22)')
+  drawHorizontalReference(ctx, shoulderMid.y, imageWidth, 'rgba(34, 197, 94, 0.25)', sf)
   drawLine(ctx, leftShoulder.x, leftShoulder.y, rightShoulder.x, rightShoulder.y, {
     color: MEASUREMENT_COLORS.shoulder,
-    width: 6,
+    width: Math.round(8 * sf),
   })
   drawLabel(ctx, {
-    x: Math.max(leftShoulder.x, rightShoulder.x) + 18,
-    y: shoulderMid.y - 18,
+    x: Math.max(leftShoulder.x, rightShoulder.x) + labelOffset,
+    y: shoulderMid.y - labelOffset,
     text: `肩 ${formatAngle(metrics?.shoulderSlopeDeg ?? lineAngleDeg(leftShoulder, rightShoulder))}`,
     color: MEASUREMENT_COLORS.shoulder,
-    maxWidth: imageWidth - 18,
+    maxWidth: imageWidth - margin,
+    sf,
   })
 
   // 骨盆线与其水平参考
-  drawHorizontalReference(ctx, hipMid.y, imageWidth, 'rgba(251, 191, 36, 0.22)')
+  drawHorizontalReference(ctx, hipMid.y, imageWidth, 'rgba(251, 191, 36, 0.25)', sf)
   drawLine(ctx, leftHip.x, leftHip.y, rightHip.x, rightHip.y, {
     color: MEASUREMENT_COLORS.pelvis,
-    width: 6,
+    width: Math.round(8 * sf),
   })
   drawLabel(ctx, {
-    x: Math.max(leftHip.x, rightHip.x) + 18,
-    y: hipMid.y - 18,
+    x: Math.max(leftHip.x, rightHip.x) + labelOffset,
+    y: hipMid.y - labelOffset,
     text: `盆 ${formatAngle(metrics?.pelvisTiltDeg ?? lineAngleDeg(leftHip, rightHip))}`,
     color: MEASUREMENT_COLORS.pelvis,
-    maxWidth: imageWidth - 18,
+    maxWidth: imageWidth - margin,
+    sf,
   })
 
   // 躯干轴线和侧移
   drawLine(ctx, shoulderMid.x, shoulderMid.y, hipMid.x, hipMid.y, {
     color: torsoAxisColor,
-    width: 5.5,
+    width: Math.round(7 * sf),
   })
   drawLine(ctx, hipMid.x, shoulderMid.y, shoulderMid.x, shoulderMid.y, {
     color: torsoAxisColor,
-    width: 4.5,
-    dash: [12, 8],
+    width: Math.round(5.5 * sf),
+    dash: [Math.round(14 * sf), Math.round(9 * sf)],
   })
   drawLabel(ctx, {
     x: Math.min(hipMid.x, shoulderMid.x) + Math.abs(shoulderMid.x - hipMid.x) / 2,
-    y: shoulderMid.y + 22,
+    y: shoulderMid.y + Math.round(22 * sf),
     text: `躯干侧移 ${formatPercent(metrics?.trunkShiftNorm ?? ((shoulderMid.x - hipMid.x) / Math.max(Math.abs(leftHip.x - rightHip.x), 1)))}`,
     color: torsoAxisColor,
     anchor: 'center',
-    maxWidth: imageWidth - 18,
+    maxWidth: imageWidth - margin,
+    sf,
   })
 
   // 头部倾斜
   if (leftEar && rightEar) {
     const earMid = midpoint(leftEar, rightEar)
-    drawHorizontalReference(ctx, earMid.y, imageWidth, 'rgba(168, 85, 247, 0.16)')
+    drawHorizontalReference(ctx, earMid.y, imageWidth, 'rgba(168, 85, 247, 0.20)', sf)
     drawLine(ctx, leftEar.x, leftEar.y, rightEar.x, rightEar.y, {
       color: MEASUREMENT_COLORS.head,
-      width: 5,
+      width: Math.round(7 * sf),
     })
     drawLabel(ctx, {
-      x: Math.max(leftEar.x, rightEar.x) + 18,
-      y: earMid.y - 16,
+      x: Math.max(leftEar.x, rightEar.x) + labelOffset,
+      y: earMid.y - Math.round(16 * sf),
       text: `头 ${formatAngle(metrics?.headTiltDeg ?? lineAngleDeg(leftEar, rightEar))}`,
       color: MEASUREMENT_COLORS.head,
-      maxWidth: imageWidth - 18,
+      maxWidth: imageWidth - margin,
+      sf,
     })
   }
 
@@ -384,20 +394,21 @@ function drawMeasurementOverlay(ctx, keypoints, imageWidth, imageHeight, measure
     const hipWidth = Math.max(Math.abs(leftHip.x - rightHip.x), 1)
     drawLine(ctx, leftAnkle.x, leftAnkle.y, rightAnkle.x, rightAnkle.y, {
       color: MEASUREMENT_COLORS.ankle,
-      width: 5,
+      width: Math.round(7 * sf),
     })
     drawLine(ctx, hipMid.x, ankleMid.y, ankleMid.x, ankleMid.y, {
       color: MEASUREMENT_COLORS.ankle,
-      width: 4.5,
-      dash: [12, 8],
+      width: Math.round(5.5 * sf),
+      dash: [Math.round(14 * sf), Math.round(9 * sf)],
     })
     drawLabel(ctx, {
       x: Math.min(hipMid.x, ankleMid.x) + Math.abs(ankleMid.x - hipMid.x) / 2,
-      y: ankleMid.y - 16,
+      y: ankleMid.y - Math.round(16 * sf),
       text: `踝代偿 ${formatRatio(metrics?.ankleCompensationRatio ?? ((ankleMid.x - hipMid.x) / hipWidth))}`,
       color: MEASUREMENT_COLORS.ankle,
       anchor: 'center',
-      maxWidth: imageWidth - 18,
+      maxWidth: imageWidth - margin,
+      sf,
     })
   }
 }
@@ -442,11 +453,11 @@ function formatRatio(value) {
   return value.toFixed(3)
 }
 
-function drawHorizontalReference(ctx, y, imageWidth, color) {
-  drawLine(ctx, 24, y, imageWidth - 24, y, {
+function drawHorizontalReference(ctx, y, imageWidth, color, sf) {
+  drawLine(ctx, Math.round(24 * sf), y, imageWidth - Math.round(24 * sf), y, {
     color,
-    width: 2.5,
-    dash: [18, 12],
+    width: Math.round(3 * sf),
+    dash: [Math.round(18 * sf), Math.round(12 * sf)],
   })
 }
 
@@ -462,13 +473,17 @@ function drawLine(ctx, x1, y1, x2, y2, { color, width = 2, dash = [] }) {
   ctx.restore()
 }
 
-function drawLabel(ctx, { x, y, text, color, anchor = 'left', maxWidth }) {
+function drawLabel(ctx, { x, y, text, color, anchor = 'left', maxWidth, sf }) {
+  const fontSize = Math.round(36 * sf)
+  const paddingX = Math.round(22 * sf)
+  const paddingY = Math.round(14 * sf)
+  const boxHeight = Math.round(64 * sf)
+  const radius = Math.round(14 * sf)
+
   ctx.save()
-  ctx.font = '700 28px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  ctx.font = `700 ${fontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`
   ctx.textBaseline = 'middle'
 
-  const paddingX = 18
-  const paddingY = 12
   const textWidth = ctx.measureText(text).width
   let boxX = x
 
@@ -479,17 +494,16 @@ function drawLabel(ctx, { x, y, text, color, anchor = 'left', maxWidth }) {
   if (maxWidth) {
     boxX = Math.min(boxX, maxWidth - textWidth - paddingX * 2)
   }
-  boxX = Math.max(12, boxX)
+  boxX = Math.max(Math.round(12 * sf), boxX)
 
-  const boxY = Math.max(12, y - 27)
+  const boxY = Math.max(Math.round(12 * sf), y - Math.round(32 * sf))
   const boxWidth = textWidth + paddingX * 2
-  const boxHeight = 54
 
   ctx.fillStyle = 'rgba(15, 23, 42, 0.88)'
-  drawRoundedRect(ctx, boxX, boxY, boxWidth, boxHeight, 12)
+  drawRoundedRect(ctx, boxX, boxY, boxWidth, boxHeight, radius)
   ctx.fill()
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)'
-  ctx.lineWidth = 2
+  ctx.lineWidth = Math.max(2, Math.round(2.5 * sf))
   ctx.stroke()
 
   ctx.fillStyle = color

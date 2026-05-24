@@ -111,27 +111,22 @@ function classifyConfidenceSeverity(confidence) {
   return confidence < 0.6 ? 'mild' : 'normal'
 }
 
-function normalizeRibHumpSeverity(ribHumpSeverity) {
-  const map = {
-    none: 'normal',
-    mild: 'mild',
-    moderate: 'moderate',
-    severe: 'severe',
-  }
-  return map[ribHumpSeverity] || 'normal'
-}
-
-function classifySeverity(curvature, shoulderAngle, pelvisAngle, confidence, trunkShift = null, ribHumpSeverity = null) {
+function classifySeverity(curvature, shoulderAngle, pelvisAngle, confidence, trunkShift = null, forwardBendSeverity = null) {
   const candidates = [
     classifyAngleSeverity(curvature),
     classifyTiltSeverity(shoulderAngle),
     classifyTiltSeverity(pelvisAngle),
     classifyTrunkShiftSeverity(trunkShift),
     classifyConfidenceSeverity(confidence),
-    normalizeRibHumpSeverity(ribHumpSeverity),
   ]
 
-  return candidates.reduce((highest, current) => pickHigherSeverity(highest, current), 'normal')
+  const baseSeverity = candidates.reduce((highest, current) => pickHigherSeverity(highest, current), 'normal')
+
+  // 弯腰位作为保守修饰因子，最多提升一级，不可独立产生严重诊断
+  if (forwardBendSeverity === 'severe' && baseSeverity === 'normal') return 'mild'
+  if (forwardBendSeverity === 'severe' && baseSeverity === 'mild') return 'moderate'
+  if (forwardBendSeverity === 'moderate' && baseSeverity === 'normal') return 'mild'
+  return baseSeverity
 }
 
 export function calculateMetrics(landmarks, imageWidth = 640, imageHeight = 480) {
@@ -214,28 +209,60 @@ export function calculateForwardBendMetrics(landmarks) {
 
   const lShoulder = pickLandmark(landmarks, SHOULDER_LEFT)
   const rShoulder = pickLandmark(landmarks, SHOULDER_RIGHT)
+  const lHip = pickLandmark(landmarks, HIP_LEFT)
+  const rHip = pickLandmark(landmarks, HIP_RIGHT)
 
-  if (!lShoulder || !rShoulder) {
-    throw new Error('无法检测到肩部关键点，请确保背部完整入镜')
+  if (!lShoulder || !rShoulder || !lHip || !rHip) {
+    throw new Error('无法检测到肩部和髋部关键点，请确保背部完整入镜')
   }
 
-  // 前屈时，左右肩高度差 = 肋骨隆起（正值=左侧更高=左侧隆起）
-  const ribHumpDiffNorm = +(rShoulder.y - lShoulder.y).toFixed(4)
-  const absRibHump = Math.abs(ribHumpDiffNorm)
+  // 弯腰位肩部倾斜（有符号，正值=左侧更高）
+  const shoulderTiltDeg = +radToDeg(
+    Math.atan2(rShoulder.y - lShoulder.y, rShoulder.x - lShoulder.x)
+  ).toFixed(2)
 
-  const ribHumpSide = absRibHump < 0.02
-    ? 'symmetric'
-    : ribHumpDiffNorm > 0 ? 'left' : 'right'
+  // 弯腰位骨盆倾斜（有符号，同上）
+  const pelvisTiltDeg = +radToDeg(
+    Math.atan2(rHip.y - lHip.y, rHip.x - lHip.x)
+  ).toFixed(2)
 
-  const ribHumpSeverity = absRibHump < 0.02
-    ? 'none'
-    : absRibHump < 0.05 ? 'mild'
-    : absRibHump < 0.10 ? 'moderate'
+  // 肩-骨盆扭转角（绝对值）
+  const torsionDeg = +Math.abs(shoulderTiltDeg - pelvisTiltDeg).toFixed(2)
+
+  // 躯干侧移（归一化）
+  const shoulderMid = midpoint(lShoulder, rShoulder)
+  const hipMid = midpoint(lHip, rHip)
+  const hipWidth = Math.abs(lHip.x - rHip.x)
+  const trunkShiftNorm = hipWidth > 0
+    ? +((shoulderMid.x - hipMid.x) / hipWidth).toFixed(4)
+    : null
+
+  // 复合对称评分
+  const asymmetryScore = +(
+    Math.abs(shoulderTiltDeg) * 0.35 +
+    Math.abs(pelvisTiltDeg) * 0.35 +
+    torsionDeg * 0.30
+  ).toFixed(2)
+
+  // 主导不对称侧
+  const shoulderSide = shoulderTiltDeg > 0 ? 'left' : 'right'
+  const pelvisSide = pelvisTiltDeg > 0 ? 'left' : 'right'
+  const dominantSide = Math.abs(shoulderTiltDeg) >= Math.abs(pelvisTiltDeg)
+    ? shoulderSide : pelvisSide
+
+  // 严重度
+  const severity = asymmetryScore < 2.0 ? 'none'
+    : asymmetryScore < 5.0 ? 'mild'
+    : asymmetryScore < 10.0 ? 'moderate'
     : 'severe'
 
   return {
-    ribHumpDiffNorm,
-    ribHumpSide,
-    ribHumpSeverity,
+    asymmetryScore,
+    shoulderTiltDeg,
+    pelvisTiltDeg,
+    torsionDeg,
+    trunkShiftNorm,
+    dominantSide,
+    severity,
   }
 }

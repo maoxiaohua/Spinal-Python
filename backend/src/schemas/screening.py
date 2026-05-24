@@ -27,10 +27,14 @@ class SpinePoseMetrics(BaseModel):
 
 
 class ForwardBendMetrics(BaseModel):
-    """Adams前屈测试指标"""
-    ribHumpDiffNorm: float = Field(..., description="肋骨隆起高度差（归一化）")
-    ribHumpSide: str = Field(..., description="隆起侧: left/right/symmetric")
-    ribHumpSeverity: str = Field(..., description="严重程度: none/mild/moderate/severe")
+    """弯腰位躯干对称性评估指标"""
+    asymmetryScore: float = Field(..., description="躯干对称综合评分")
+    shoulderTiltDeg: float = Field(..., description="弯腰位肩部倾斜角（度）")
+    pelvisTiltDeg: float = Field(..., description="弯腰位骨盆倾斜角（度）")
+    torsionDeg: float = Field(..., description="肩-骨盆扭转角（度）")
+    trunkShiftNorm: Optional[float] = Field(None, description="弯腰位躯干侧移（归一化）")
+    dominantSide: str = Field(..., description="不对称侧重侧: left/right/symmetric")
+    severity: str = Field(..., description="严重程度: none/mild/moderate/severe")
 
 
 class LandmarksUploadRequest(BaseModel):

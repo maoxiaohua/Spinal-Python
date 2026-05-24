@@ -51,7 +51,7 @@ async def upload_landmarks(
                 metrics_dict["pelvisTiltDeg"],
                 metrics_dict["postureConfidence"],
                 metrics_dict.get("trunkShiftNorm"),
-                request.forwardBendMetrics.ribHumpSeverity,
+                request.forwardBendMetrics.severity,
             )
             metrics_dict["severity"] = final_severity
             metrics_dict["summary"] = SpineMeasurement.SEVERITY_SUMMARY[final_severity]
@@ -80,9 +80,13 @@ async def upload_landmarks(
         # 保存前屈测试数据（如有）
         if request.forwardBendMetrics:
             fb = request.forwardBendMetrics
-            session.rib_hump_diff_norm = fb.ribHumpDiffNorm
-            session.rib_hump_side = fb.ribHumpSide
-            session.rib_hump_severity = fb.ribHumpSeverity
+            session.forward_bend_asymmetry_score = fb.asymmetryScore
+            session.forward_bend_shoulder_tilt = fb.shoulderTiltDeg
+            session.forward_bend_pelvis_tilt = fb.pelvisTiltDeg
+            session.forward_bend_torsion = fb.torsionDeg
+            session.forward_bend_trunk_shift = fb.trunkShiftNorm
+            session.forward_bend_dominant_side = fb.dominantSide
+            session.forward_bend_severity = fb.severity
         if request.forwardBendLandmarks:
             session.forward_bend_landmarks = [lm.model_dump() for lm in request.forwardBendLandmarks]
 
@@ -167,11 +171,15 @@ async def get_analysis(
             )
 
         forward_bend_metrics = None
-        if session.rib_hump_diff_norm is not None:
+        if session.forward_bend_asymmetry_score is not None:
             forward_bend_metrics = ForwardBendMetrics(
-                ribHumpDiffNorm=session.rib_hump_diff_norm,
-                ribHumpSide=session.rib_hump_side,
-                ribHumpSeverity=session.rib_hump_severity,
+                asymmetryScore=session.forward_bend_asymmetry_score,
+                shoulderTiltDeg=session.forward_bend_shoulder_tilt,
+                pelvisTiltDeg=session.forward_bend_pelvis_tilt,
+                torsionDeg=session.forward_bend_torsion,
+                trunkShiftNorm=session.forward_bend_trunk_shift,
+                dominantSide=session.forward_bend_dominant_side,
+                severity=session.forward_bend_severity,
             )
 
         ai_analysis = None

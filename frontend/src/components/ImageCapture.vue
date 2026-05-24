@@ -1136,8 +1136,8 @@ export default {
 
     const handleUpload = async () => {
       if (!landmarks.value || !metrics.value) return
-      // 先通知父组件"准备提交"，父组件决定是否进入前屈步骤
-      emit('submit-ready', { landmarks: landmarks.value, metrics: metrics.value })
+      const screenshot = canvasElement.value?.toDataURL('image/jpeg', 0.85) || imagePreview.value
+      emit('submit-ready', { landmarks: landmarks.value, metrics: metrics.value, image: screenshot })
     }
 
     const doUpload = async () => {
@@ -1148,7 +1148,8 @@ export default {
       try {
         const response = await uploadLandmarks(landmarks.value, metrics.value)
         console.log('上传成功:', response)
-        emit('upload-complete', response)
+        const screenshot = canvasElement.value?.toDataURL('image/jpeg', 0.85) || imagePreview.value
+        emit('upload-complete', { ...response, image: screenshot })
       } catch (err) {
         console.error('上传失败:', err)
         status.value = 'error'

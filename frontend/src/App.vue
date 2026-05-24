@@ -67,6 +67,8 @@
           :ai-analysis="aiAnalysis"
           :forward-bend-metrics="forwardBendMetrics"
           :analysis-mode="analysisMode"
+          :standing-image="standingImage"
+          :forward-bend-image="forwardBendImage"
           @restart="handleRestart"
         />
       </div>
@@ -216,6 +218,8 @@ export default {
     const forwardBendMetrics = ref(null)
     const standingLandmarks = ref(null)
     const standingMetrics = ref(null)
+    const standingImage = ref(null)
+    const forwardBendImage = ref(null)
     const analysisMode = ref('basic')
     const isSubmittingForwardBend = ref(false)
     const forwardBendSubmitError = ref('')
@@ -294,6 +298,7 @@ export default {
     const handleUploadComplete = (data) => {
       sessionId.value = data.sessionId
       aiAnalysis.value = data.aiAnalysis
+      if (data?.image) standingImage.value = data.image
       currentStep.value = 'result'
       syncLocationWithSession(data.sessionId)
     }
@@ -305,6 +310,7 @@ export default {
         standingMetrics.value = data.metrics
         metrics.value = data.metrics
       }
+      if (data?.image) standingImage.value = data.image
       forwardBendSubmitError.value = ''
       currentStep.value = 'forward_bend'
     }
@@ -346,6 +352,7 @@ export default {
     const handleForwardBendComplete = async (data) => {
       forwardBendMetrics.value = data.metrics
       analysisMode.value = data.analysisMode || 'basic'
+      if (data?.image) forwardBendImage.value = data.image
       await submitStandingAnalysis(data)
     }
 
@@ -363,6 +370,8 @@ export default {
       forwardBendMetrics.value = null
       standingLandmarks.value = null
       standingMetrics.value = null
+      standingImage.value = null
+      forwardBendImage.value = null
       analysisMode.value = 'basic'
       isSubmittingForwardBend.value = false
       forwardBendSubmitError.value = ''
@@ -390,6 +399,8 @@ export default {
       metrics,
       aiAnalysis,
       forwardBendMetrics,
+      standingImage,
+      forwardBendImage,
       analysisMode,
       isSubmittingForwardBend,
       forwardBendSubmitError,

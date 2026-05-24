@@ -12,7 +12,34 @@ const FONT_FAMILY = "'PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Sa
 
 let measureContext = null
 
+const PHOTO_MAX_SIZE = 800
+
+function resizeBase64Image(base64, maxSize) {
+  return new Promise((resolve, reject) => {
+    if (!base64) return resolve(null)
+    const img = new Image()
+    img.onload = () => {
+      const { width, height } = img
+      const scale = Math.min(1, maxSize / Math.max(width, height))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(width * scale)
+      canvas.height = Math.round(height * scale)
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      resolve(canvas.toDataURL('image/jpeg', 0.8))
+    }
+    img.onerror = () => {
+      console.warn('图片缩放失败，使用原图')
+      resolve(base64)
+    }
+    img.src = base64
+  })
+}
+
 export async function downloadReport(data) {
+  data.standingImage = await resizeBase64Image(data.standingImage, PHOTO_MAX_SIZE)
+  data.forwardBendImage = await resizeBase64Image(data.forwardBendImage, PHOTO_MAX_SIZE)
+
   const svg = generateReportSVG(data)
   const blob = await renderSvgToPng(svg)
   if (!blob) throw new Error('报告图片生成失败')
@@ -27,8 +54,18 @@ export async function downloadReport(data) {
   URL.revokeObjectURL(url)
 }
 
+function stripMarkdown(text) {
+  return String(text || '')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/^[-*_]{3,}\s*$/gm, '')
+    .replace(/^>\s*/gm, '')
+    .trim()
+}
+
 function generateReportSVG(data) {
-  const { sessionId, metrics, aiAnalysis, createdAt, forwardBendMetrics } = data
+  const { sessionId, metrics, aiAnalysis, createdAt, forwardBendMetrics, standingImage, forwardBendImage } = data
   const elements = []
   const renderOps = []
   let y = PAGE_PADDING
@@ -93,6 +130,63 @@ function generateReportSVG(data) {
     }),
   )
   y += headerHeight + SECTION_GAP
+
+  // Photo section
+  const hasStandingPhoto = !!standingImage
+  const hasForwardBendPhoto = !!forwardBendImage
+
+  if (hasStandingPhoto || hasForwardBendPhoto) {
+    const photoCount = (hasStandingPhoto ? 1 : 0) + (hasForwardBendPhoto ? 1 : 0)
+    const photoGap = 20
+    const photoWidth = (CONTENT_WIDTH - photoGap * (photoCount - 1)) / photoCount
+    const photoHeight = Math.round(photoWidth * 1.25)
+    const photoSectionHeight = 56 + photoHeight
+
+    renderOps.push(
+      textBlock(PAGE_PADDING, y + 40, ['筛查照片'], {
+        fontSize: 28,
+        fontWeight: 700,
+        fill: '#0f172a',
+      }),
+    )
+
+    let photoX = PAGE_PADDING
+    if (hasStandingPhoto) {
+      renderOps.push(
+        roundedRect(photoX, y + 56, photoWidth, photoHeight, {
+          fill: '#f8fafc',
+          stroke: '#dbe4f0',
+          rx: 24,
+        }),
+        `<image href="${escapeXml(standingImage)}" x="${photoX + 4}" y="${y + 60}" width="${photoWidth - 8}" height="${photoHeight - 8}" preserveAspectRatio="xMidYMid slice" />`,
+        textBlock(photoX + photoWidth / 2, y + photoHeight + 90, ['站立位照片'], {
+          fontSize: 22,
+          fontWeight: 600,
+          fill: '#475569',
+          textAnchor: 'middle',
+        }),
+      )
+      photoX += photoWidth + photoGap
+    }
+    if (hasForwardBendPhoto) {
+      renderOps.push(
+        roundedRect(photoX, y + 56, photoWidth, photoHeight, {
+          fill: '#f8fafc',
+          stroke: '#dbe4f0',
+          rx: 24,
+        }),
+        `<image href="${escapeXml(forwardBendImage)}" x="${photoX + 4}" y="${y + 60}" width="${photoWidth - 8}" height="${photoHeight - 8}" preserveAspectRatio="xMidYMid slice" />`,
+        textBlock(photoX + photoWidth / 2, y + photoHeight + 90, ['弯腰位照片'], {
+          fontSize: 22,
+          fontWeight: 600,
+          fill: '#475569',
+          textAnchor: 'middle',
+        }),
+      )
+    }
+
+    y += photoSectionHeight + SECTION_GAP
+  }
 
   if (metrics) {
     const summaryLines = wrapText(metrics.summary || '暂无摘要', CONTENT_WIDTH - 80, '500 28px ' + FONT_FAMILY)
@@ -240,12 +334,12 @@ function buildMetricItems(metrics, forwardBendMetrics, severityText) {
   if (metrics.trunkShiftNorm != null) items.push(['躯干侧移', `${(metrics.trunkShiftNorm * 100).toFixed(1)}%`])
   if (metrics.headTiltDeg != null) items.push(['头部倾斜角', `${metrics.headTiltDeg.toFixed(1)}°`])
   if (metrics.ankleCompensationRatio != null) items.push(['踝部代偿比', metrics.ankleCompensationRatio.toFixed(3)])
-  if (forwardBendMetrics?.ribHumpDiffNorm != null) items.push(['肋骨隆起差', forwardBendMetrics.ribHumpDiffNorm.toFixed(3)])
-  if (forwardBendMetrics?.ribHumpSide) {
-    items.push(['隆起侧', { left: '左侧', right: '右侧', symmetric: '对称' }[forwardBendMetrics.ribHumpSide] || forwardBendMetrics.ribHumpSide])
+  if (forwardBendMetrics?.asymmetryScore != null) items.push(['躯干对称评分', forwardBendMetrics.asymmetryScore.toFixed(1)])
+  if (forwardBendMetrics?.dominantSide) {
+    items.push(['不对称侧重侧', { left: '左侧', right: '右侧', symmetric: '对称' }[forwardBendMetrics.dominantSide] || forwardBendMetrics.dominantSide])
   }
-  if (forwardBendMetrics?.ribHumpSeverity) {
-    items.push(['Adams严重程度', { none: '无', mild: '轻度', moderate: '中度', severe: '重度' }[forwardBendMetrics.ribHumpSeverity] || forwardBendMetrics.ribHumpSeverity])
+  if (forwardBendMetrics?.severity) {
+    items.push(['弯腰综合评估', { none: '无', mild: '轻度', moderate: '中度', severe: '重度' }[forwardBendMetrics.severity] || forwardBendMetrics.severity])
   }
 
   return items.map(([label, value]) => ({ label, value }))
@@ -253,7 +347,8 @@ function buildMetricItems(metrics, forwardBendMetrics, severityText) {
 
 function buildAnalysisLines(aiAnalysis) {
   const lines = []
-  const paragraphs = String(aiAnalysis.analysis || '')
+  const cleaned = stripMarkdown(aiAnalysis.analysis || '')
+  const paragraphs = String(cleaned)
     .replace(/\r\n/g, '\n')
     .split(/\n{2,}/)
     .map(part => part.trim())
@@ -305,6 +400,7 @@ function textBlock(x, y, lines, options = {}) {
     fontWeight = 400,
     fill = '#0f172a',
     lineHeight = Math.round(fontSize * 1.45),
+    textAnchor = 'start',
   } = options
 
   const safeLines = Array.isArray(lines) ? lines : [String(lines || '')]
@@ -316,7 +412,7 @@ function textBlock(x, y, lines, options = {}) {
     })
     .join('')
 
-  return `<text x="${x}" y="${y}" fill="${fill}" font-family="${FONT_FAMILY}" font-size="${fontSize}" font-weight="${fontWeight}">${tspans}</text>`
+  return `<text x="${x}" y="${y}" fill="${fill}" font-family="${FONT_FAMILY}" font-size="${fontSize}" font-weight="${fontWeight}" text-anchor="${textAnchor}">${tspans}</text>`
 }
 
 function roundedRect(x, y, width, height, options = {}) {

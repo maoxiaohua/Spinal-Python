@@ -150,21 +150,23 @@ class AIService:
             alignment_block += f"踝部代偿比：{metrics['ankleCompensationRatio']:.3f}（>0.1提示代偿性重心偏移）\n"
 
         adams_block = ""
-        if metrics.get('ribHumpDiffNorm') is not None:
+        if metrics.get('asymmetryScore') is not None:
             side_map = {'left': '左侧', 'right': '右侧', 'symmetric': '对称'}
             severity_map = {'none': '无', 'mild': '轻度', 'moderate': '中度', 'severe': '重度'}
             adams_block = (
-                f"\n【Adams前屈试验】\n"
-                f"肋骨隆起高度差：{metrics['ribHumpDiffNorm']:.3f}（归一化）\n"
-                f"隆起侧：{side_map.get(metrics.get('ribHumpSide', ''), metrics.get('ribHumpSide', ''))}\n"
-                f"Adams试验严重程度：{severity_map.get(metrics.get('ribHumpSeverity', ''), metrics.get('ribHumpSeverity', ''))}\n"
+                f"\n【弯腰位躯干对称性评估】\n"
+                f"躯干对称评分：{metrics['asymmetryScore']:.1f}\n"
+                f"肩部倾斜角：{metrics.get('shoulderTiltDeg', 0):.1f}°  骨盆倾斜角：{metrics.get('pelvisTiltDeg', 0):.1f}°\n"
+                f"肩-骨盆扭转角：{metrics.get('torsionDeg', 0):.1f}°\n"
+                f"不对称侧重侧：{side_map.get(metrics.get('dominantSide', ''), metrics.get('dominantSide', ''))}\n"
+                f"综合评估等级：{severity_map.get(metrics.get('severity', ''), metrics.get('severity', ''))}\n"
             )
 
         if adams_block:
             analysis_request = (
-                "请综合站立位和前屈试验结果提供：\n"
+                "请综合站立位和弯腰位躯干对称性评估结果提供：\n"
                 "1. 综合健康等级（正常/轻度/中度/重度）及判断依据\n"
-                "2. Adams试验结果解读（肋骨隆起是否提示结构性侧弯）\n"
+                "2. 弯腰位躯干对称性解读（肩骨盆扭转和侧移是否提示姿势或结构性问题）\n"
                 "3. 建议（复查频率、运动、是否就医）\n"
                 "4. 一句重要提醒\n"
             )

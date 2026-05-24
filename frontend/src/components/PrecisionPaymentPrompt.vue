@@ -1,9 +1,9 @@
 <template>
   <div class="rounded-[28px] border border-slate-200 bg-white/90 p-5 sm:p-6">
-    <h4 class="text-lg font-semibold text-slate-950">提交前屈照片获得精准分析</h4>
+    <h4 class="text-lg font-semibold text-slate-950">提交弯腰照片获得对比分析</h4>
     <p class="mt-2 text-sm leading-6 text-slate-600">
-      提交前屈照片进行 Adams 试验分析，结合站立位与弯腰位数据，
-      获取更全面的脊柱健康综合评估。精准分析可更准确地识别肋骨隆起等旋转畸形特征。
+      提交弯腰照片进行躯干对称性分析，结合站立位与弯腰位数据，
+      获取更全面的脊柱健康综合评估。对比分析可辅助判断姿势性和结构性不对称。
     </p>
 
     <div class="mt-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
@@ -12,8 +12,8 @@
         <span class="text-sm text-slate-500">一次精准分析</span>
       </div>
       <ul class="mt-2 space-y-1 text-sm text-slate-600">
-        <li>· 站立位与前屈位综合评估</li>
-        <li>· Adams 试验肋骨隆起分析</li>
+        <li>· 站立位与弯腰位综合对比评估</li>
+        <li>· 肩部与骨盆对称性对比分析</li>
         <li>· 更详细的解读和建议</li>
       </ul>
     </div>

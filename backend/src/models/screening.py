@@ -24,11 +24,20 @@ class ScreeningSession(BaseModel):
     # 骨骼坐标 (JSON)
     landmarks = Column(JSON, nullable=True)
 
-    # Adams前屈测试（Step 2 新增）
+    # Adams前屈测试（旧字段，已弃用，保留向后兼容）
     rib_hump_diff_norm = Column(Float, nullable=True)
     rib_hump_side = Column(String(20), nullable=True)
     rib_hump_severity = Column(String(20), nullable=True)
     forward_bend_landmarks = Column(JSON, nullable=True)
+
+    # 弯腰位躯干对称性评估（替代 rib_hump_*）
+    forward_bend_asymmetry_score = Column(Float, nullable=True)
+    forward_bend_shoulder_tilt = Column(Float, nullable=True)
+    forward_bend_pelvis_tilt = Column(Float, nullable=True)
+    forward_bend_torsion = Column(Float, nullable=True)
+    forward_bend_trunk_shift = Column(Float, nullable=True)
+    forward_bend_dominant_side = Column(String(20), nullable=True)
+    forward_bend_severity = Column(String(20), nullable=True)
 
     # AI 分析
     ai_analysis = Column(Text, nullable=True)

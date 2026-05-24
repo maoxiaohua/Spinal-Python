@@ -4,9 +4,9 @@
       <div class="border-b border-slate-200/70 px-4 py-4 sm:px-7 sm:py-5">
         <div class="flex items-center justify-between gap-4">
           <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.22em] text-brand-navy/70">Step 2 / Adams Test</p>
-            <h3 class="mt-1 text-2xl font-semibold tracking-tight text-slate-950">前屈测试照片</h3>
-            <p class="mt-1 text-sm text-slate-600">让孩子向前弯腰约 90°，从背后拍摄，用于检测肋骨隆起（Adams 试验）。</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.22em] text-brand-navy/70">Step 2 / Trunk Symmetry</p>
+            <h3 class="mt-1 text-2xl font-semibold tracking-tight text-slate-950">弯腰对比评估</h3>
+            <p class="mt-1 text-sm text-slate-600">让孩子向前弯腰约 90°，从背后拍摄，用于分析弯腰位躯干对称性，辅助判断姿势影响。</p>
           </div>
           <button
             type="button"
@@ -71,6 +71,14 @@
           <div v-if="status === 'error'" class="rounded-[24px] border border-rose-200 bg-rose-50 p-4">
             <p class="text-sm font-semibold text-rose-900">识别失败</p>
             <p class="mt-1 text-sm text-rose-700">{{ errorMessage }}</p>
+            <button
+              type="button"
+              @click="handleReset"
+              class="mt-3 inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-50"
+            >
+              <RefreshCw class="h-4 w-4" />
+              重新上传照片
+            </button>
           </div>
 
           <div v-if="submitError" class="rounded-[24px] border border-rose-200 bg-rose-50 p-4">
@@ -79,18 +87,19 @@
           </div>
 
           <div v-if="ribHumpResult" class="rounded-[24px] border border-teal-200 bg-teal-50/60 p-4">
-            <p class="text-xs font-semibold uppercase tracking-[0.22em] text-teal-700">Adams 试验结果</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.22em] text-teal-700">躯干对称性评估结果</p>
+            <p class="mt-1 text-xs text-slate-500">注：弯腰位分析无法直接测量肋骨隆起或脊柱旋转，仅供对称性参考。</p>
             <div class="mt-3 grid gap-3 sm:grid-cols-3">
               <div class="rounded-2xl border border-white/90 bg-white/80 p-3">
-                <p class="text-xs text-slate-500">肋骨隆起差</p>
-                <p class="mt-1 text-xl font-semibold text-slate-950">{{ ribHumpResult.ribHumpDiffNorm.toFixed(3) }}</p>
+                <p class="text-xs text-slate-500">躯干对称评分</p>
+                <p class="mt-1 text-xl font-semibold text-slate-950">{{ ribHumpResult.asymmetryScore.toFixed(1) }}</p>
               </div>
               <div class="rounded-2xl border border-white/90 bg-white/80 p-3">
-                <p class="text-xs text-slate-500">隆起侧</p>
+                <p class="text-xs text-slate-500">不对称侧重侧</p>
                 <p class="mt-1 text-xl font-semibold text-slate-950">{{ sideLabel }}</p>
               </div>
               <div class="rounded-2xl border border-white/90 bg-white/80 p-3">
-                <p class="text-xs text-slate-500">严重程度</p>
+                <p class="text-xs text-slate-500">综合评估</p>
                 <p class="mt-1 text-xl font-semibold" :class="severityClass">{{ severityLabel }}</p>
               </div>
             </div>
@@ -150,19 +159,19 @@ export default {
     const landmarks = ref(null)
     const ribHumpResult = ref(null)
     const hints = [
-      { title: '弯腰角度约 90°', description: '背部尽量与地面平行，不需要完全水平，自然弯曲即可。' },
-      { title: '双肩完整入镜', description: '确保左右肩膀都在画面内，这是检测肋骨隆起的关键。' },
-      { title: '从正后方拍摄', description: '拍摄者站在孩子正后方，与背部保持约 1 米距离。' },
+      { title: '弯腰角度约 90°', description: '背部尽量与地面平行，双臂自然下垂，不要挡住身体两侧。' },
+      { title: '从肩膀到髋部完整入镜', description: '确保整个背部（从肩到臀）都在画面内，距离约 1-1.5 米拍摄。' },
+      { title: '光线充足、背景简洁', description: '避免逆光或复杂背景，纯色墙面最佳，衣服颜色与背景有明显对比。' },
     ]
 
     const sideLabel = computed(() => {
       const map = { left: '左侧', right: '右侧', symmetric: '对称' }
-      return map[ribHumpResult.value?.ribHumpSide] || ''
+      return map[ribHumpResult.value?.dominantSide] || ''
     })
 
     const severityLabel = computed(() => {
       const map = { none: '无', mild: '轻度', moderate: '中度', severe: '重度' }
-      return map[ribHumpResult.value?.ribHumpSeverity] || ''
+      return map[ribHumpResult.value?.severity] || ''
     })
 
     const severityClass = computed(() => {
@@ -172,7 +181,7 @@ export default {
         moderate: 'text-orange-700',
         severe: 'text-rose-700',
       }
-      return map[ribHumpResult.value?.ribHumpSeverity] || 'text-slate-950'
+      return map[ribHumpResult.value?.severity] || 'text-slate-950'
     })
 
     const triggerFileInput = () => {
@@ -219,8 +228,36 @@ export default {
           canvasElement.value.style.aspectRatio = `${w} / ${h}`
         }
 
-        const result = await poseService.detectPose(img)
-        if (!result?.landmarks) throw new Error('未检测到人体姿态，请确保照片中有完整的背部')
+        // 先尝试正常检测
+        let result = await poseService.detectPose(img)
+
+        // 前屈照片中人体上下颠倒，MoveNet 可能识别失败，尝试旋转180°
+        if (!result?.landmarks) {
+          console.log('正常检测失败，尝试旋转180°检测...')
+          const rotatedCanvas = document.createElement('canvas')
+          rotatedCanvas.width = w
+          rotatedCanvas.height = h
+          const rctx = rotatedCanvas.getContext('2d')
+          rctx.translate(w / 2, h / 2)
+          rctx.rotate(Math.PI)
+          rctx.drawImage(img, -w / 2, -h / 2, w, h)
+          result = await poseService.detectPose(rotatedCanvas)
+          // 将旋转后的关键点坐标还原
+          if (result?.keypoints) {
+            result.keypoints.forEach(kp => {
+              kp.x = w - kp.x
+              kp.y = h - kp.y
+            })
+          }
+          if (result?.landmarks) {
+            result.landmarks.forEach(lm => {
+              lm.x = 1 - lm.x
+              lm.y = 1 - lm.y
+            })
+          }
+        }
+
+        if (!result?.landmarks) throw new Error('未检测到人体姿态，请确保背部完整入镜、光线充足、背景简洁')
 
         landmarks.value = result.landmarks
 
@@ -230,8 +267,13 @@ export default {
           })
         }
 
-        ribHumpResult.value = calculateForwardBendMetrics(result.landmarks)
         status.value = 'detected'
+        try {
+          ribHumpResult.value = calculateForwardBendMetrics(result.landmarks)
+        } catch (metricsErr) {
+          console.warn('前屈对称性指标计算受限:', metricsErr.message)
+          ribHumpResult.value = null
+        }
       } catch (err) {
         status.value = 'error'
         errorMessage.value = err.message || '识别失败，请重新拍摄'
@@ -240,18 +282,22 @@ export default {
 
     const handleSubmit = () => {
       if (!landmarks.value || !ribHumpResult.value) return
+      const screenshot = canvasElement.value?.toDataURL('image/jpeg', 0.85) || imagePreview.value
       emit('forward-bend-complete', {
         landmarks: landmarks.value,
         metrics: ribHumpResult.value,
+        image: screenshot,
       })
     }
 
     const handlePrecisionAccept = () => {
       if (!landmarks.value || !ribHumpResult.value) return
+      const screenshot = canvasElement.value?.toDataURL('image/jpeg', 0.85) || imagePreview.value
       emit('forward-bend-complete', {
         landmarks: landmarks.value,
         metrics: ribHumpResult.value,
         analysisMode: 'precision',
+        image: screenshot,
       })
     }
 

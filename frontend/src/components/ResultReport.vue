@@ -144,11 +144,11 @@
             </div>
 
             <div v-if="reportForwardBendMetrics" class="mt-4 rounded-[24px] border border-teal-200 bg-teal-50/60 p-4">
-              <p class="text-xs font-semibold uppercase tracking-[0.22em] text-teal-700">Adams前屈试验</p>
+              <p class="text-xs font-semibold uppercase tracking-[0.22em] text-teal-700">弯腰对比评估</p>
               <div class="mt-3 grid gap-3 sm:grid-cols-3">
-                <MetricCard label="肋骨隆起差" :value="reportForwardBendMetrics.ribHumpDiffNorm.toFixed(3)" />
-                <MetricCard label="隆起侧" :value="{ left: '左侧', right: '右侧', symmetric: '对称' }[reportForwardBendMetrics.ribHumpSide] || reportForwardBendMetrics.ribHumpSide" />
-                <MetricCard label="Adams严重程度" :value="{ none: '无', mild: '轻度', moderate: '中度', severe: '重度' }[reportForwardBendMetrics.ribHumpSeverity] || reportForwardBendMetrics.ribHumpSeverity" />
+                <MetricCard label="躯干对称评分" :value="reportForwardBendMetrics.asymmetryScore.toFixed(1)" />
+                <MetricCard label="不对称侧重侧" :value="{ left: '左侧', right: '右侧', symmetric: '对称' }[reportForwardBendMetrics.dominantSide] || reportForwardBendMetrics.dominantSide" />
+                <MetricCard label="弯腰综合评估" :value="{ none: '无', mild: '轻度', moderate: '中度', severe: '重度' }[reportForwardBendMetrics.severity] || reportForwardBendMetrics.severity" />
               </div>
             </div>
           </div>
@@ -297,10 +297,20 @@ import MetricCard from './MetricCard.vue'
 import RecommendationsSection from './RecommendationsSection.vue'
 import { downloadReport } from '../utils/downloadReport.js'
 
-function parseAnalysisText(text) {
-  const normalized = String(text || '')
-    .replace(/\r\n/g, '\n')
+function stripMarkdown(text) {
+  return String(text || '')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/^[-*_]{3,}\s*$/gm, '')
+    .replace(/^>\s*/gm, '')
     .trim()
+}
+
+function parseAnalysisText(text) {
+  const normalized = stripMarkdown(String(text || '')
+    .replace(/\r\n/g, '\n')
+    .trim())
 
   if (!normalized) {
     return {
@@ -421,6 +431,14 @@ export default {
     analysisMode: {
       type: String,
       default: 'basic',
+    },
+    standingImage: {
+      type: String,
+      default: null,
+    },
+    forwardBendImage: {
+      type: String,
+      default: null,
     },
   },
   emits: ['restart'],
@@ -552,6 +570,8 @@ export default {
         metrics: reportMetrics.value,
         aiAnalysis: reportAiAnalysis.value,
         forwardBendMetrics: reportForwardBendMetrics.value,
+        standingImage: props.standingImage,
+        forwardBendImage: props.forwardBendImage,
         createdAt: Date.now(),
       }
       try {
