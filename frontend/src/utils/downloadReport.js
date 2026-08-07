@@ -64,6 +64,147 @@ function stripMarkdown(text) {
     .trim()
 }
 
+function looksLikeBullet(line) {
+  return /^([-•●▪︎]|\*\s|[0-9]+[.)、]|[一二三四五六七八九十]+[、.．])/.test(line)
+}
+
+function stripBulletMarker(line) {
+  return String(line || '')
+    .replace(/^([-•●▪︎]|\*\s|[0-9]+[.)、]|[一二三四五六七八九十]+[、.．])\s*/, '')
+    .trim()
+}
+
+function stripHeadingMarker(line) {
+  return String(line || '')
+    .replace(/^([一二三四五六七八九十]+[、.．]|[0-9]+[、.．])\s*/, '')
+    .replace(/[:：]$/, '')
+    .trim()
+}
+
+function classifySectionType(title) {
+  const map = { '健康等级': 'grade', '判断依据': 'basis', '建议': 'suggestion', '提醒': 'warning' }
+  for (const [key, value] of Object.entries(map)) {
+    if (title.includes(key)) return value
+  }
+  return 'generic'
+}
+
+function parseStructuredText(text) {
+  const sectionRegex = /【([^】]+)】([\s\S]*?)(?=【|$)/g
+  let match
+  const sections = []
+  while ((match = sectionRegex.exec(text)) !== null) {
+    const title = match[1].trim()
+    const body = match[2].trim()
+    if (!title || !body) continue
+    const lines = body.split('\n').map(l => l.trim()).filter(Boolean)
+    const paragraphs = []
+    const bullets = []
+    lines.forEach(line => {
+      if (looksLikeBullet(line)) {
+        bullets.push(stripBulletMarker(line))
+      } else {
+        paragraphs.push(stripHeadingMarker(line))
+      }
+    })
+    sections.push({
+      title,
+      type: classifySectionType(title),
+      paragraphs: paragraphs.length > 0 ? paragraphs : [body],
+      bullets,
+    })
+  }
+  return sections.length > 0 ? sections : null
+}
+
+function parseMarkdownSections(text) {
+  const blocks = text.split(/^###\s+/gm)
+  if (blocks.length <= 1) return null
+
+  const sections = []
+  blocks.slice(1).forEach(block => {
+    const lines = block.trim().split('\n')
+    const rawTitle = lines[0].trim()
+    const title = rawTitle
+      .replace(/^[0-9]+[、.．]\s*/, '')
+      .replace(/[*_]{1,2}/g, '')
+      .trim()
+    if (!title) return
+
+    const contentLines = lines.slice(1).map(l => l.trim()).filter(Boolean)
+    const paragraphs = []
+    const bullets = []
+
+    contentLines.forEach(line => {
+      if (/^[-*_]{3,}\s*$/.test(line)) return
+      let cleanLine = line.replace(/\*\*([^*]+)\*\*/g, '$1')
+      if (looksLikeBullet(cleanLine)) {
+        bullets.push(stripBulletMarker(cleanLine).replace(/\*([^*]+)\*/g, '$1'))
+      } else {
+        cleanLine = cleanLine.replace(/\*([^*]+)\*/g, '$1')
+        paragraphs.push(cleanLine)
+      }
+    })
+
+    sections.push({
+      title,
+      type: classifySectionType(title),
+      paragraphs: (paragraphs.length === 0 && bullets.length === 0)
+        ? [contentLines.join('\n').replace(/\*\*([^*]+)\*\*/g, '$1')]
+        : paragraphs,
+      bullets,
+    })
+  })
+
+  return sections.length > 0 ? sections : null
+}
+
+const SECTION_STYLE = {
+  grade: {
+    cardFill: '#ecfdf5',
+    cardStroke: '#a7f3d0',
+    accentFill: '#059669',
+    titleColor: '#047857',
+    bulletColor: '#10b981',
+  },
+  basis: {
+    cardFill: '#f8fafc',
+    cardStroke: '#e2e8f0',
+    accentFill: '#475569',
+    titleColor: '#334155',
+    bulletColor: '#64748b',
+  },
+  suggestion: {
+    cardFill: '#fffbeb',
+    cardStroke: '#fde68a',
+    accentFill: '#d97706',
+    titleColor: '#b45309',
+    bulletColor: '#f59e0b',
+  },
+  warning: {
+    cardFill: '#fef3c7',
+    cardStroke: '#fcd34d',
+    accentFill: '#b45309',
+    titleColor: '#92400e',
+    bulletColor: '#f97316',
+  },
+  generic: {
+    cardFill: '#f8fafc',
+    cardStroke: '#e2e8f0',
+    accentFill: '#64748b',
+    titleColor: '#334155',
+    bulletColor: '#94a3b8',
+  },
+}
+
+const SECTION_TYPE_LABEL = {
+  grade: '健康等级',
+  basis: '判断依据',
+  suggestion: '对应建议',
+  warning: '重要提醒',
+  generic: '分析要点',
+}
+
 function generateReportSVG(data) {
   const { sessionId, metrics, aiAnalysis, createdAt, forwardBendMetrics, standingImage, forwardBendImage } = data
   const elements = []
@@ -256,32 +397,175 @@ function generateReportSVG(data) {
 
   // AI analysis
   if (aiAnalysis?.analysis) {
-    const analysisLines = buildAnalysisLines(aiAnalysis)
-    const analysisHeight = 92 + analysisLines.length * 34 + 72
-    renderOps.push(
-      roundedRect(PAGE_PADDING, y, CONTENT_WIDTH, analysisHeight, {
-        fill: '#ffffff',
-        stroke: '#dbe4f0',
-        rx: 30,
-      }),
-      textBlock(PAGE_PADDING + 34, y + 44, ['专业分析'], {
-        fontSize: 28,
-        fontWeight: 700,
-        fill: '#0f172a',
-      }),
-      textBlock(PAGE_PADDING + 34, y + 92, analysisLines, {
-        fontSize: 24,
-        lineHeight: 34,
-        fill: '#334155',
-      }),
-      textBlock(PAGE_PADDING + 34, y + analysisHeight - 28, [
-        `生成时间：${formatDateTime(aiAnalysis.timestamp || Date.now())}`,
-      ], {
-        fontSize: 18,
-        fill: '#94a3b8',
-      }),
-    )
-    y += analysisHeight + SECTION_GAP
+    const raw = String(aiAnalysis.analysis || '').replace(/\r\n/g, '\n').trim()
+    const structuredSections = parseStructuredText(raw) || parseMarkdownSections(raw)
+
+    if (structuredSections) {
+      const sectionGap = 16
+      const cardPaddingX = 28
+      const cardPaddingTop = 32
+      const accentWidth = 8
+      const titleFontSize = 24
+      const titleLineHeight = 34
+      const contentFontSize = 22
+      const contentLineHeight = 32
+      const contentMaxWidth = CONTENT_WIDTH - cardPaddingX * 2 - accentWidth - 20
+      const font400 = '400 ' + contentFontSize + 'px ' + FONT_FAMILY
+      const font700title = '700 ' + titleFontSize + 'px ' + FONT_FAMILY
+      const font700content = '700 ' + contentFontSize + 'px ' + FONT_FAMILY
+
+      // Calculate total height
+      let totalHeight = 60 // header "专业分析" row height
+      structuredSections.forEach((section) => {
+        const style = SECTION_STYLE[section.type] || SECTION_STYLE.generic
+        let contentLines = 0
+        // Title line
+        contentLines += 1
+        // Paragraphs
+        section.paragraphs.forEach((p) => {
+          contentLines += wrapText(p, contentMaxWidth, font400).length
+        })
+        // Bullets
+        section.bullets.forEach((b) => {
+          const bulletText = '• ' + b
+          contentLines += wrapText(bulletText, contentMaxWidth, font400).length
+        })
+        // Section card height
+        const cardHeight = cardPaddingTop + contentLines * contentLineHeight + 28
+        totalHeight += cardHeight + sectionGap
+      })
+      totalHeight += 48 // timestamp row
+
+      // Main outer card
+      renderOps.push(
+        roundedRect(PAGE_PADDING, y, CONTENT_WIDTH, totalHeight, {
+          fill: '#ffffff',
+          stroke: '#dbe4f0',
+          rx: 30,
+        }),
+        textBlock(PAGE_PADDING + 34, y + 40, ['专业分析'], {
+          fontSize: 28,
+          fontWeight: 700,
+          fill: '#0f172a',
+        }),
+      )
+
+      let sectionY = y + 60
+      structuredSections.forEach((section, idx) => {
+        const style = SECTION_STYLE[section.type] || SECTION_STYLE.generic
+        let contentLines = 0
+        const renderLines = []
+
+        // Title
+        contentLines += 1
+        renderLines.push({ text: section.title, font: font700title, fill: style.titleColor, indent: 0, isTitle: true })
+
+        // Paragraphs
+        section.paragraphs.forEach((p) => {
+          const wrapped = wrapText(p, contentMaxWidth, font400)
+          wrapped.forEach((line) => {
+            contentLines += 1
+            renderLines.push({ text: line, font: font400, fill: '#334155', indent: 0 })
+          })
+        })
+
+        // Bullets
+        section.bullets.forEach((b) => {
+          const bulletText = '• ' + b
+          const wrapped = wrapText(bulletText, contentMaxWidth, font400)
+          wrapped.forEach((line) => {
+            contentLines += 1
+            renderLines.push({ text: line, font: font400, fill: '#475569', indent: 12 })
+          })
+        })
+
+        const cardHeight = cardPaddingTop + contentLines * contentLineHeight + 28
+
+        // Section card background
+        renderOps.push(
+          roundedRect(PAGE_PADDING + cardPaddingX, sectionY, CONTENT_WIDTH - cardPaddingX * 2, cardHeight, {
+            fill: style.cardFill,
+            stroke: style.cardStroke,
+            rx: 20,
+          }),
+          // Left accent bar
+          `<rect x="${PAGE_PADDING + cardPaddingX}" y="${sectionY + 8}" width="${accentWidth}" height="${cardHeight - 16}" rx="4" fill="${style.accentFill}" />`,
+        )
+
+        // Render text lines
+        let lineY = sectionY + cardPaddingTop + 4
+        const textStartX = PAGE_PADDING + cardPaddingX + accentWidth + 20
+        renderLines.forEach((rl) => {
+          const yOffset = rl.isTitle ? 2 : 0
+          renderOps.push(
+            textBlock(textStartX + rl.indent, lineY + yOffset, [rl.text], {
+              fontSize: rl.isTitle ? titleFontSize : contentFontSize,
+              fontWeight: rl.isTitle ? 700 : 400,
+              fill: rl.fill,
+              lineHeight: contentLineHeight,
+            }),
+          )
+          lineY += contentLineHeight
+        })
+
+        // Section type badge (pill)
+        const badgeText = SECTION_TYPE_LABEL[section.type] || SECTION_TYPE_LABEL.generic
+        const badgeWidth = measureWidth(badgeText, '700 16px ' + FONT_FAMILY) + 24
+        const badgeX = PAGE_PADDING + CONTENT_WIDTH - cardPaddingX - badgeWidth - 16
+        const badgeY = sectionY + 16
+        renderOps.push(
+          `<rect x="${badgeX}" y="${badgeY}" width="${badgeWidth}" height="26" rx="13" fill="${style.accentFill}" opacity="0.12" />`,
+          textBlock(badgeX + badgeWidth / 2, badgeY + 18, [badgeText], {
+            fontSize: 16,
+            fontWeight: 600,
+            fill: style.accentFill,
+            textAnchor: 'middle',
+          }),
+        )
+
+        sectionY += cardHeight + sectionGap
+      })
+
+      // Timestamp
+      renderOps.push(
+        textBlock(PAGE_PADDING + 34, y + totalHeight - 20, [
+          `生成时间：${formatDateTime(aiAnalysis.timestamp || Date.now())}`,
+        ], {
+          fontSize: 18,
+          fill: '#94a3b8',
+        }),
+      )
+
+      y += totalHeight + SECTION_GAP
+    } else {
+      // Fallback: plain text rendering
+      const analysisLines = buildAnalysisLines(aiAnalysis)
+      const analysisHeight = 92 + analysisLines.length * 34 + 72
+      renderOps.push(
+        roundedRect(PAGE_PADDING, y, CONTENT_WIDTH, analysisHeight, {
+          fill: '#ffffff',
+          stroke: '#dbe4f0',
+          rx: 30,
+        }),
+        textBlock(PAGE_PADDING + 34, y + 44, ['专业分析'], {
+          fontSize: 28,
+          fontWeight: 700,
+          fill: '#0f172a',
+        }),
+        textBlock(PAGE_PADDING + 34, y + 92, analysisLines, {
+          fontSize: 24,
+          lineHeight: 34,
+          fill: '#334155',
+        }),
+        textBlock(PAGE_PADDING + 34, y + analysisHeight - 28, [
+          `生成时间：${formatDateTime(aiAnalysis.timestamp || Date.now())}`,
+        ], {
+          fontSize: 18,
+          fill: '#94a3b8',
+        }),
+      )
+      y += analysisHeight + SECTION_GAP
+    }
   }
 
   // Disclaimer

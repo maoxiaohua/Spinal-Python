@@ -105,8 +105,13 @@
             </div>
           </div>
 
+          <div v-if="status === 'detected' && !ribHumpResult" class="rounded-[24px] border border-amber-200 bg-amber-50 p-4">
+            <p class="text-sm font-semibold text-amber-900">指标计算受限</p>
+            <p class="mt-1 text-sm text-amber-700">姿态识别成功，但弯腰位对称性指标计算失败。建议重新拍摄或使用免费分析继续。</p>
+          </div>
+
           <PrecisionPaymentPrompt
-            v-if="status === 'detected'"
+            v-if="status === 'detected' && ribHumpResult"
             :busy="busy"
             class="mt-4"
             @accept="handlePrecisionAccept"

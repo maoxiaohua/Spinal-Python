@@ -183,17 +183,17 @@
                 <article
                   v-for="(section, index) in analysisSections"
                   :key="`${section.title}-${index}`"
-                  class="rounded-[28px] border border-slate-200 bg-[linear-gradient(180deg,rgba(248,250,252,0.92),rgba(255,255,255,0.98))] p-5"
+                  :class="`rounded-[28px] border p-5 ${getSectionCardClass(section.type)}`"
                 >
                   <div class="flex items-start gap-4">
-                    <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-sm font-semibold text-white">
+                    <div :class="`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-2xl text-sm font-semibold text-white ${getSectionIconBg(section.type)}`">
                       {{ index + 1 }}
                     </div>
                     <div class="min-w-0 flex-1">
                       <div class="flex flex-wrap items-center gap-2">
                         <h4 class="text-lg font-semibold text-slate-950">{{ section.title }}</h4>
-                        <span class="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-500">
-                          分析要点
+                        <span :class="`rounded-full border px-2.5 py-1 text-xs font-medium ${getSectionBadgeClass(section.type)}`">
+                          {{ getSectionTypeLabel(section.type) }}
                         </span>
                       </div>
 
@@ -215,7 +215,7 @@
                             :key="`b-${index}-${bulletIndex}`"
                             class="flex gap-3 leading-6"
                           >
-                            <span class="mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-brand-teal"></span>
+                            <span :class="`mt-2 h-2 w-2 flex-shrink-0 rounded-full ${getSectionBulletClass(section.type)}`"></span>
                             <span>{{ bullet }}</span>
                           </li>
                         </ul>
@@ -307,16 +307,112 @@ function stripMarkdown(text) {
     .trim()
 }
 
-function parseAnalysisText(text) {
-  const normalized = stripMarkdown(String(text || '')
-    .replace(/\r\n/g, '\n')
-    .trim())
+function parseStructuredText(text) {
+  const sectionRegex = /【([^】]+)】([\s\S]*?)(?=【|$)/g
+  let match
+  const sections = []
 
+  while ((match = sectionRegex.exec(text)) !== null) {
+    const title = match[1].trim()
+    const body = match[2].trim()
+    if (!title || !body) continue
+
+    const lines = body.split('\n').map(l => l.trim()).filter(Boolean)
+    const paragraphs = []
+    const bullets = []
+    lines.forEach(line => {
+      if (looksLikeBullet(line)) {
+        bullets.push(stripBulletMarker(line))
+      } else {
+        paragraphs.push(stripHeadingMarker(line))
+      }
+    })
+
+    sections.push({
+      title,
+      type: classifySectionType(title),
+      paragraphs: paragraphs.length > 0 ? paragraphs : [body],
+      bullets,
+    })
+  }
+
+  return sections.length > 0 ? sections : null
+}
+
+function classifySectionType(title) {
+  const map = {
+    '健康等级': 'grade',
+    '判断依据': 'basis',
+    '建议': 'suggestion',
+    '提醒': 'warning',
+  }
+  for (const [key, value] of Object.entries(map)) {
+    if (title.includes(key)) return value
+  }
+  return 'generic'
+}
+
+function parseMarkdownSections(text) {
+  const blocks = text.split(/^###\s+/gm)
+  if (blocks.length <= 1) return null
+
+  const sections = []
+  blocks.slice(1).forEach(block => {
+    const lines = block.trim().split('\n')
+    const rawTitle = lines[0].trim()
+    const title = rawTitle
+      .replace(/^[0-9]+[、.．]\s*/, '')
+      .replace(/[*_]{1,2}/g, '')
+      .trim()
+    if (!title) return
+
+    const contentLines = lines.slice(1).map(l => l.trim()).filter(Boolean)
+    const paragraphs = []
+    const bullets = []
+
+    contentLines.forEach(line => {
+      if (/^[-*_]{3,}\s*$/.test(line)) return
+      let cleanLine = line.replace(/\*\*([^*]+)\*\*/g, '$1')
+      if (looksLikeBullet(cleanLine)) {
+        bullets.push(stripBulletMarker(cleanLine).replace(/\*([^*]+)\*/g, '$1'))
+      } else {
+        cleanLine = cleanLine.replace(/\*([^*]+)\*/g, '$1')
+        paragraphs.push(cleanLine)
+      }
+    })
+
+    sections.push({
+      title,
+      type: classifySectionType(title),
+      paragraphs: (paragraphs.length === 0 && bullets.length === 0)
+        ? [contentLines.join('\n').replace(/\*\*([^*]+)\*\*/g, '$1')]
+        : paragraphs,
+      bullets,
+    })
+  })
+
+  return sections.length > 0 ? sections : null
+}
+
+function parseAnalysisText(text) {
+  const raw = String(text || '').replace(/\r\n/g, '\n').trim()
+  if (!raw) {
+    return { lead: '', sections: [] }
+  }
+
+  const structuredSections = parseStructuredText(raw)
+  if (structuredSections) {
+    return { lead: '', sections: structuredSections }
+  }
+
+  const markdownSections = parseMarkdownSections(raw)
+  if (markdownSections) {
+    return { lead: '', sections: markdownSections }
+  }
+
+  const normalized = stripMarkdown(raw)
   if (!normalized) {
-    return {
-      lead: '',
-      sections: [],
-    }
+    return { lead: '', sections: [] }
   }
 
   const blocks = normalized
@@ -383,7 +479,7 @@ function looksLikeSectionTitle(line) {
 }
 
 function looksLikeBullet(line) {
-  return /^([-•●▪︎]|[0-9]+[.)、]|[一二三四五六七八九十]+[、.．])/.test(line)
+  return /^([-•●▪︎]|\*\s|[0-9]+[.)、]|[一二三四五六七八九十]+[、.．])/.test(line)
 }
 
 function stripHeadingMarker(line) {
@@ -395,7 +491,7 @@ function stripHeadingMarker(line) {
 
 function stripBulletMarker(line) {
   return String(line || '')
-    .replace(/^([-•●▪︎]|[0-9]+[.)、]|[一二三四五六七八九十]+[、.．])\s*/, '')
+    .replace(/^([-•●▪︎]|\*\s|[0-9]+[.)、]|[一二三四五六七八九十]+[、.．])\s*/, '')
     .trim()
 }
 
@@ -586,6 +682,52 @@ export default {
       emit('restart')
     }
 
+    const sectionCardClassMap = {
+      grade: 'border-emerald-200 bg-[linear-gradient(180deg,rgba(236,253,245,0.95),rgba(255,255,255,0.98))]',
+      basis: 'border-slate-200 bg-[linear-gradient(180deg,rgba(248,250,252,0.92),rgba(255,255,255,0.98))]',
+      suggestion: 'border-amber-200 bg-[linear-gradient(180deg,rgba(255,251,235,0.95),rgba(255,255,255,0.98))]',
+      warning: 'border-amber-300 bg-[linear-gradient(180deg,rgba(254,243,199,0.95),rgba(255,255,255,0.98))]',
+      generic: 'border-slate-200 bg-[linear-gradient(180deg,rgba(248,250,252,0.92),rgba(255,255,255,0.98))]',
+    }
+
+    const sectionIconBgMap = {
+      grade: 'bg-emerald-600',
+      basis: 'bg-slate-700',
+      suggestion: 'bg-amber-600',
+      warning: 'bg-amber-700',
+      generic: 'bg-slate-950',
+    }
+
+    const sectionBadgeClassMap = {
+      grade: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+      basis: 'border-slate-200 bg-slate-50 text-slate-600',
+      suggestion: 'border-amber-200 bg-amber-50 text-amber-700',
+      warning: 'border-amber-200 bg-amber-50 text-amber-700',
+      generic: 'border-slate-200 bg-white text-slate-500',
+    }
+
+    const sectionBulletClassMap = {
+      grade: 'bg-emerald-500',
+      basis: 'bg-slate-500',
+      suggestion: 'bg-amber-500',
+      warning: 'bg-amber-600',
+      generic: 'bg-brand-teal',
+    }
+
+    const sectionTypeLabelMap = {
+      grade: '健康等级',
+      basis: '判断依据',
+      suggestion: '对应建议',
+      warning: '重要提醒',
+      generic: '分析要点',
+    }
+
+    const getSectionCardClass = (type) => sectionCardClassMap[type] || sectionCardClassMap.generic
+    const getSectionIconBg = (type) => sectionIconBgMap[type] || sectionIconBgMap.generic
+    const getSectionBadgeClass = (type) => sectionBadgeClassMap[type] || sectionBadgeClassMap.generic
+    const getSectionBulletClass = (type) => sectionBulletClassMap[type] || sectionBulletClassMap.generic
+    const getSectionTypeLabel = (type) => sectionTypeLabelMap[type] || sectionTypeLabelMap.generic
+
     return {
       loading,
       error,
@@ -599,6 +741,11 @@ export default {
       followUpDescription,
       analysisLead,
       analysisSections,
+      getSectionCardClass,
+      getSectionIconBg,
+      getSectionBadgeClass,
+      getSectionBulletClass,
+      getSectionTypeLabel,
       getSeverityText,
       formatTime,
       handleDownload,
